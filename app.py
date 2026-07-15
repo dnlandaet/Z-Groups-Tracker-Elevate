@@ -59,7 +59,6 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- LOGIN SYSTEM ---
-# Initialize session state for login
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 
@@ -68,20 +67,16 @@ def check_login():
     if st.session_state["username_input"] == "ElevateBE" and st.session_state["password_input"] == "Elevate2026":
         st.session_state["logged_in"] = True
         st.success("Login successful!")
-        # Clear error message if successful
         if "login_error" in st.session_state:
             del st.session_state["login_error"]
     else:
         st.session_state["login_error"] = "❌ Incorrect username or password."
 
-# If NOT logged in, show the login form and STOP execution
 if not st.session_state["logged_in"]:
-    # Center the login box vertically/horizontally using columns
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
     with col_l2:
         st.write("")
         st.write("")
-        # Try to show the logo in the login screen as well
         logo_names = ["Amrize_Logo_2025.svg", "Amrize_Logo_2025.png", "logo.png", "logo.svg"]
         for name in logo_names:
             if os.path.exists(name):
@@ -89,18 +84,14 @@ if not st.session_state["logged_in"]:
                 break
         
         st.subheader("🔑 Sign In to Z-Groups Tracker")
-        
-        # User input fields
         st.text_input("Username", key="username_input")
         st.text_input("Password", type="password", key="password_input", on_change=check_login)
-        
         st.button("Login", on_click=check_login, type="primary")
         
-        # Show error if login failed
         if "login_error" in st.session_state:
             st.error(st.session_state["login_error"])
             
-    st.stop() # Stop running the rest of the app until logged_in is True
+    st.stop()
 
 
 # --- BRANDING: AUTOMATIC LOGO DETECTOR (After Login) ---
@@ -125,7 +116,6 @@ st.sidebar.header("Data Source Upload")
 prev_file = st.sidebar.file_uploader("Upload PREVIOUS MONTH file (Excel)", type=["xlsx", "xls"])
 curr_file = st.sidebar.file_uploader("Upload CURRENT MONTH file (Excel)", type=["xlsx", "xls"])
 
-# Logout option on sidebar for convenience
 if st.sidebar.button("Logout"):
     st.session_state["logged_in"] = False
     st.rerun()
@@ -209,11 +199,11 @@ else:
 
     st.write("---")
 
-    # --- STEP 4: TRANSITION TABLE (ANALYST CHANGE TRACKER) ---
+    # --- STEP 4: TRANSITION TABLE (STRICT ANALYST-TO-ANALYST CHANGES) ---
     st.subheader("🔄 Credit Analyst Assignment Transitions")
-    st.markdown("These are the accounts that changed credit analysts between the previous and current month, displaying their current exposure.")
+    st.markdown("These are the accounts that transitioned strictly **from one specific credit analyst to another** (excluding brand new accounts or previously unassigned accounts).")
 
-    # Merge dataframes using 'Customer' ID
+    # Merge dataframes on Customer
     df_comparison = pd.merge(
         df_prev_clean[["Customer", "Credit Analyst", "Total Past Due", "Total Balance"]],
         df_curr_clean[["Customer", "Customer Name", "Credit Analyst", "Total Past Due", "Total Balance"]],
@@ -221,9 +211,18 @@ else:
         suffixes=("_Previous", "_Current")
     )
 
-    # Filter where credit analyst assignments differ
+    # Convert Analyst names to string and clean spaces
+    df_comparison["Credit Analyst_Previous"] = df_comparison["Credit Analyst_Previous"].astype(str).str.strip()
+    df_comparison["Credit Analyst_Current"] = df_comparison["Credit Analyst_Current"].astype(str).str.strip()
+
+    # Define invalid analyst states to filter out
+    invalid_states = ["NOT FOUND", "NO CREDIT ANALYST ASSIGNED.", "NAN", "", "NONE", "UNASSIGNED"]
+
+    # Filter strictly analyst-to-analyst changes
     df_analyst_changes = df_comparison[
-        df_comparison["Credit Analyst_Previous"] != df_comparison["Credit Analyst_Current"]
+        (df_comparison["Credit Analyst_Previous"] != df_comparison["Credit Analyst_Current"]) &
+        (~df_comparison["Credit Analyst_Previous"].str.upper().isin(invalid_states)) &
+        (~df_comparison["Credit Analyst_Current"].str.upper().isin(invalid_states))
     ]
 
     if not df_analyst_changes.empty:
@@ -247,31 +246,71 @@ else:
             use_container_width=True
         )
         
-        # Financial summary of transferred portfolio
+        # Financial summary
         transferred_past_due = df_analyst_changes["Total Past Due_Current"].sum()
         transferred_balance = df_analyst_changes["Total Balance_Current"].sum()
         
         st.info(
-            f"💰 **Financial Impact of Changes:** Transferred accounts represent a total of "
+            f"💰 **Financial Impact of Assignments:** Transferred accounts represent a total of "
             f"**${transferred_balance:,.2f}** in Total Balance and **${transferred_past_due:,.2f}** in Total Past Due."
         )
     else:
-        st.success("✅ No credit analyst assignment transitions were detected between the loaded months.")
+        st.success("✅ No credit analyst assignment transitions were detected between valid analysts.")
+
+    st.write("---")
+
+    # --- NEW SECTION: UNASSIGNED ACCOUNTS WITH OPEN BALANCE ---
+    st.subheader("⚠️ Unassigned Accounts (Current Month)")
+    st.markdown("These are current month accounts with an **open balance** that do not have an active Credit Analyst assigned (contains 'No Credit Analyst Assigned.', 'Not Found', or blank fields).")
+
+    # Filter unassigned accounts in the current month open balance data
+    df_unassigned = df_curr_open[
+        (df_curr_open["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)) |
+        (df_curr_open["Credit Analyst"].isna())
+    ]
+
+    if not df_unassigned.empty:
+        df_unassigned_formatted = df_unassigned[[
+            "Customer", "Customer Name", "Z-Group", "Credit Analyst", "Total Past Due", "Total Balance"
+        ]].rename(columns={
+            "Credit Analyst": "Assigned Status",
+            "Total Past Due": "Total Past Due (Actual)",
+            "Total Balance": "Total Balance (Actual)"
+        })
+
+        st.dataframe(
+            df_unassigned_formatted.style.format({
+                "Total Past Due (Actual)": "${:,.2f}",
+                "Total Balance (Actual)": "${:,.2f}"
+            }),
+            use_container_width=True
+        )
+
+        unassigned_balance_sum = df_unassigned["Total Balance"].sum()
+        st.warning(
+            f"🚨 **Total Exposure Unassigned:** There are **{len(df_unassigned)}** accounts with open balance currently without an analyst, "
+            f"representing a total of **${unassigned_balance_sum:,.2f}**."
+        )
+    else:
+        st.success("✅ Great! Every active open-balance account has an analyst assigned for the current month.")
 
     st.write("---")
 
     # --- STEP 5: CURRENT MONTH ANALYST DISTRIBUTION ---
     st.subheader("👥 Analyst Portfolio Distribution (Current Month)")
-    st.markdown("Breakdown of active, open-balance accounts (excluding 'Not Found') currently assigned to each credit analyst.")
+    st.markdown("Breakdown of active, open-balance accounts (excluding 'Not Found' and unassigned) currently assigned to each active credit analyst.")
 
-    # Group Current Active Month Data by Analyst
-    df_analyst_distribution = df_curr_open.groupby("Credit Analyst").agg(
+    # Filter out unassigned accounts from analyst statistics to keep active team clean
+    df_curr_open_assigned = df_curr_open[
+        ~df_curr_open["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)
+    ]
+
+    df_analyst_distribution = df_curr_open_assigned.groupby("Credit Analyst").agg(
         Account_Count=("Customer", "count"),
         Sum_Past_Due=("Total Past Due", "sum"),
         Sum_Balance=("Total Balance", "sum")
     ).reset_index()
 
-    # Sort descending based on count of accounts
     df_analyst_distribution = df_analyst_distribution.sort_values(by="Account_Count", ascending=False)
 
     df_analyst_distribution = df_analyst_distribution.rename(columns={
@@ -281,7 +320,6 @@ else:
         "Sum_Balance": "Accumulated Total Balance"
     })
 
-    # Render styled distribution dataframe
     st.dataframe(
         df_analyst_distribution.style.format({
             "Account Count": "{:,}",
