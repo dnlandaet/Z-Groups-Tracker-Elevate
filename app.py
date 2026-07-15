@@ -58,19 +58,18 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- BRANDING: AMRIZE LOGO INTEGRATION ---
-# Usamos la URL directa del render en PNG que provee Wikimedia Commons para evitar problemas de compatibilidad con SVG en HTML puro de Streamlit
-logo_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Amrize_Logo_2025.svg/512px-Amrize_Logo_2025.svg.png"
+# Use the official raw URL from Wikimedia upload servers to bypass hotlinking protection
+logo_url = "https://upload.wikimedia.org/wikipedia/commons/c/cd/Amrize_Logo_2025.svg"
 
-# Colocamos el Logo y el Título alineados
-col_logo, col_title = st.columns([1, 4])
+# Header columns structure (Adjust width ratio for better alignment)
+col_logo, col_title = st.columns([1, 5])
 with col_logo:
-    st.image(logo_url, use_container_width=True)
+    # Use HTML wrapper to ensure perfect loading and centering
+    st.markdown(f'<img src="{logo_url}" width="160" style="margin-top: 10px;">', unsafe_allow_html=True)
 with col_title:
     st.title("Credit & Portfolio Control Dashboard")
 
 st.markdown("Upload your comparative monthly files below to track analyst changes and overall portfolio movement.")
-
-# --- EL RESTO DE TU CÓDIGO (STEP 1 EN ADELANTE) CONTINÚA EXACTAMENTE IGUAL ---
 
 # --- STEP 1: FILE UPLOADER ---
 st.sidebar.header("Data Source Upload")
