@@ -148,6 +148,9 @@ else:
             df_clean["Total Balance"].astype(str).str.strip().str.upper() != "NOT FOUND"
         ]
         
+        # FIX: Convert Customer column to integer (removing decimals) and then to string safely
+        df_clean["Customer"] = pd.to_numeric(df_clean["Customer"], errors='coerce').fillna(0).astype(int).astype(str)
+        
         # Convert numeric columns safely to floats
         df_clean["Total Balance"] = pd.to_numeric(df_clean["Total Balance"], errors='coerce')
         df_clean["Total Past Due"] = pd.to_numeric(df_clean["Total Past Due"], errors='coerce')
