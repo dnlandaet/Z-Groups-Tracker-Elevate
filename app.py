@@ -4,7 +4,7 @@ import os
 
 # 1. Page Configuration
 st.set_page_config(
-    page_title="Amrize Monthly Comparative Dashboard",
+    page_title="Amrize - Z-Groups Tracker Elevate",
     page_icon="📊",
     layout="wide"
 )
@@ -59,7 +59,6 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- BRANDING: AUTOMATIC LOGO DETECTOR ---
-# This looks for any downloaded version of the Amrize logo in your folder
 possible_names = [
     "Amrize_Logo_2025.svg", 
     "Amrize_Logo_2025.png", 
@@ -73,20 +72,15 @@ for name in possible_names:
         logo_file = name
         break
 
-# Header columns structure
-col_logo, col_title = st.columns([1, 3])
+# --- HEADER LAYOUT (LOGO ON TOP, TITLE BELOW) ---
+if logo_file:
+    # Centered Logo on top with a maximum width limit to keep it sharp and clean
+    st.image(logo_file, width=280)
+else:
+    st.info("⚠️ Place 'Amrize_Logo_2025.svg' or 'logo.png' in your project folder.")
 
-with col_logo:
-    if logo_file:
-        # We set a fixed elegant width (240px) so the wide logo maintains its original perfect aspect ratio
-        st.image(logo_file, width=240)
-    else:
-        # Fallback helper to show you exactly what to do if it's still missing
-        st.info("⚠️ Place 'Amrize_Logo_2025.svg' or 'logo.png' in your project folder.")
-
-with col_title:
-    st.title("Credit & Portfolio Control Dashboard")
-
+# New Title & Subtitle structure directly below the Logo
+st.title("Z-Groups Tracker Elevate")
 st.markdown("Upload your comparative monthly files below to track analyst changes and overall portfolio movement.")
 
 # --- STEP 1: FILE UPLOADER ---
