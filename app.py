@@ -58,15 +58,54 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# --- BRANDING: AUTOMATIC LOGO DETECTOR ---
-possible_names = [
-    "Amrize_Logo_2025.svg", 
-    "Amrize_Logo_2025.png", 
-    "logo.png", 
-    "logo.svg"
-]
+# --- LOGIN SYSTEM ---
+# Initialize session state for login
+if "logged_in" not in st.session_state:
+    st.session_state["logged_in"] = False
 
+def check_login():
+    """Validates the hardcoded credentials"""
+    if st.session_state["username_input"] == "ElevateBE" and st.session_state["password_input"] == "Elevate2026":
+        st.session_state["logged_in"] = True
+        st.success("Login successful!")
+        # Clear error message if successful
+        if "login_error" in st.session_state:
+            del st.session_state["login_error"]
+    else:
+        st.session_state["login_error"] = "❌ Incorrect username or password."
+
+# If NOT logged in, show the login form and STOP execution
+if not st.session_state["logged_in"]:
+    # Center the login box vertically/horizontally using columns
+    col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
+    with col_l2:
+        st.write("")
+        st.write("")
+        # Try to show the logo in the login screen as well
+        logo_names = ["Amrize_Logo_2025.svg", "Amrize_Logo_2025.png", "logo.png", "logo.svg"]
+        for name in logo_names:
+            if os.path.exists(name):
+                st.image(name, width=220)
+                break
+        
+        st.subheader("🔑 Sign In to Z-Groups Tracker")
+        
+        # User input fields
+        st.text_input("Username", key="username_input")
+        st.text_input("Password", type="password", key="password_input", on_change=check_login)
+        
+        st.button("Login", on_click=check_login, type="primary")
+        
+        # Show error if login failed
+        if "login_error" in st.session_state:
+            st.error(st.session_state["login_error"])
+            
+    st.stop() # Stop running the rest of the app until logged_in is True
+
+
+# --- BRANDING: AUTOMATIC LOGO DETECTOR (After Login) ---
 logo_file = None
+possible_names = ["Amrize_Logo_2025.svg", "Amrize_Logo_2025.png", "logo.png", "logo.svg"]
 for name in possible_names:
     if os.path.exists(name):
         logo_file = name
@@ -74,12 +113,10 @@ for name in possible_names:
 
 # --- HEADER LAYOUT (LOGO ON TOP, TITLE BELOW) ---
 if logo_file:
-    # Centered Logo on top with a maximum width limit to keep it sharp and clean
     st.image(logo_file, width=280)
 else:
     st.info("⚠️ Place 'Amrize_Logo_2025.svg' or 'logo.png' in your project folder.")
 
-# New Title & Subtitle structure directly below the Logo
 st.title("Z-Groups Tracker Elevate")
 st.markdown("Upload your comparative monthly files below to track analyst changes and overall portfolio movement.")
 
@@ -87,6 +124,11 @@ st.markdown("Upload your comparative monthly files below to track analyst change
 st.sidebar.header("Data Source Upload")
 prev_file = st.sidebar.file_uploader("Upload PREVIOUS MONTH file (Excel)", type=["xlsx", "xls"])
 curr_file = st.sidebar.file_uploader("Upload CURRENT MONTH file (Excel)", type=["xlsx", "xls"])
+
+# Logout option on sidebar for convenience
+if st.sidebar.button("Logout"):
+    st.session_state["logged_in"] = False
+    st.rerun()
 
 # File Check Warning
 if not prev_file or not curr_file:
