@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import os
 
 # 1. Page Configuration
 st.set_page_config(
@@ -57,19 +58,32 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# --- BRANDING: AMRIZE LOGO INTEGRATION ---
-# Local image path - This guarantees the logo will always load, locally and in the cloud!
-logo_path = "logo.png"
+# --- BRANDING: AUTOMATIC LOGO DETECTOR ---
+# This looks for any downloaded version of the Amrize logo in your folder
+possible_names = [
+    "Amrize_Logo_2025.svg", 
+    "Amrize_Logo_2025.png", 
+    "logo.png", 
+    "logo.svg"
+]
 
-# Header columns structure (Adjust width ratio for perfect alignment)
-col_logo, col_title = st.columns([1, 4])
+logo_file = None
+for name in possible_names:
+    if os.path.exists(name):
+        logo_file = name
+        break
+
+# Header columns structure
+col_logo, col_title = st.columns([1, 3])
+
 with col_logo:
-    try:
-        # Load local image securely
-        st.image(logo_path, use_container_width=True)
-    except Exception:
-        # Fallback text if the file is not found locally yet
-        st.write("📌 *Amrize*")
+    if logo_file:
+        # We set a fixed elegant width (240px) so the wide logo maintains its original perfect aspect ratio
+        st.image(logo_file, width=240)
+    else:
+        # Fallback helper to show you exactly what to do if it's still missing
+        st.info("⚠️ Place 'Amrize_Logo_2025.svg' or 'logo.png' in your project folder.")
+
 with col_title:
     st.title("Credit & Portfolio Control Dashboard")
 
