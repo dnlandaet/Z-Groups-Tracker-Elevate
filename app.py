@@ -148,7 +148,7 @@ else:
             df_clean["Total Balance"].astype(str).str.strip().str.upper() != "NOT FOUND"
         ]
         
-        # FIX: Convert Customer column to integer (removing decimals) and then to string safely
+        # Convert Customer column to integer (removing decimals) and then to string safely
         df_clean["Customer"] = pd.to_numeric(df_clean["Customer"], errors='coerce').fillna(0).astype(int).astype(str)
         
         # Convert numeric columns safely to floats
@@ -228,6 +228,9 @@ else:
         (~df_comparison["Credit Analyst_Current"].str.upper().isin(invalid_states))
     ]
 
+    transferred_balance = 0
+    transferred_past_due = 0
+
     if not df_analyst_changes.empty:
         df_changes_formatted = df_analyst_changes[[
             "Customer", "Customer Name", 
@@ -249,7 +252,7 @@ else:
             use_container_width=True
         )
         
-        # Financial summary
+        # Financial summary of transitions
         transferred_past_due = df_analyst_changes["Total Past Due_Current"].sum()
         transferred_balance = df_analyst_changes["Total Balance_Current"].sum()
         
@@ -272,6 +275,9 @@ else:
         (df_curr_open["Credit Analyst"].isna())
     ]
 
+    unassigned_balance_sum = 0
+    unassigned_count = len(df_unassigned)
+
     if not df_unassigned.empty:
         df_unassigned_formatted = df_unassigned[[
             "Customer", "Customer Name", "Z-Group", "Credit Analyst", "Total Past Due", "Total Balance"
@@ -291,7 +297,7 @@ else:
 
         unassigned_balance_sum = df_unassigned["Total Balance"].sum()
         st.warning(
-            f"🚨 **Total Exposure Unassigned:** There are **{len(df_unassigned)}** accounts with open balance currently without an analyst, "
+            f"🚨 **Total Exposure Unassigned:** There are **{unassigned_count}** accounts with open balance currently without an analyst, "
             f"representing a total of **${unassigned_balance_sum:,.2f}**."
         )
     else:
@@ -316,7 +322,7 @@ else:
 
     df_analyst_distribution = df_analyst_distribution.sort_values(by="Account_Count", ascending=False)
 
-    df_analyst_distribution = df_analyst_distribution.rename(columns={
+    df_analyst_distribution_formatted = df_analyst_distribution.rename(columns={
         "Credit Analyst": "Credit Analyst",
         "Account_Count": "Account Count",
         "Sum_Past_Due": "Accumulated Total Past Due",
@@ -324,10 +330,51 @@ else:
     })
 
     st.dataframe(
-        df_analyst_distribution.style.format({
+        df_analyst_distribution_formatted.style.format({
             "Account Count": "{:,}",
             "Accumulated Total Past Due": "${:,.2f}",
             "Accumulated Total Balance": "${:,.2f}"
         }),
         use_container_width=True
     )
+
+    st.write("---")
+
+    # --- NEW SECTION: EXECUTIVE SUMMARY (SUMMARY BOX) ---
+    st.subheader("📋 Executive Summary & Insights")
+    
+    # 1. Calculate critical distribution variables dynamically
+    if not df_analyst_distribution.empty:
+        # Analyst with the most accounts
+        top_account_analyst_row = df_analyst_distribution.loc[df_analyst_distribution["Account_Count"].idxmax()]
+        top_acc_analyst = top_account_analyst_row["Credit Analyst"]
+        top_acc_count = top_account_analyst_row["Account_Count"]
+
+        # Analyst with the most total balance (exposure)
+        top_exposure_analyst_row = df_analyst_distribution.loc[df_analyst_distribution["Sum_Balance"].idxmax()]
+        top_exp_analyst = top_exposure_analyst_row["Credit Analyst"]
+        top_exp_balance = top_exposure_analyst_row["Sum_Balance"]
+    else:
+        top_acc_analyst, top_acc_count = "N/A", 0
+        top_exp_analyst, top_exp_balance = "N/A", 0
+
+    # 2. Calculate ratios
+    unassigned_ratio = (unassigned_balance_sum / total_balance_curr * 100) if total_balance_curr > 0 else 0
+
+    # Render clean bullet-point list
+    col_summary, col_notes = st.columns([2, 1])
+
+    with col_summary:
+        st.markdown(f"""
+        * 📊 **Workload Leader:** **{top_acc_analyst}** currently manages the largest volume of active clients with **{top_acc_count} accounts**.
+        * 📈 **Risk Exposure Leader:** **{top_exp_analyst}** holds the highest portfolio exposure under management, totaling **${top_exp_balance:,.2f}** in Total Balance.
+        * 🔄 **Transitional Exposure:** A total of **${transferred_balance:,.2f}** (and **${transferred_past_due:,.2f}** in Past Due) has shifted analyst responsibility this month.
+        * ⚠️ **Unassigned Portfolio:** There are **{unassigned_count} unassigned accounts**, representing **{unassigned_ratio:.2f}%** of the total open balance (**${unassigned_balance_sum:,.2f}**).
+        """)
+        
+    with col_notes:
+        # Action Item Highlight Box
+        if unassigned_count > 0:
+            st.warning(f"💡 **Action Required:** We recommend reviewing and assigning the **{unassigned_count} unassigned accounts** immediately to minimize portfolio risk of **${unassigned_balance_sum:,.2f}**.")
+        else:
+            st.success("🎉 **Outstanding!** The entire credit team is fully assigned. No unattended portfolio balances detected this month.")
