@@ -305,33 +305,73 @@ else:
 
     st.write("---")
 
-    # --- STEP 5: CURRENT MONTH ANALYST DISTRIBUTION ---
-    st.subheader("👥 Analyst Portfolio Distribution (Current Month)")
-    st.markdown("Breakdown of active, open-balance accounts (excluding 'Not Found' and unassigned) currently assigned to each active credit analyst.")
+    # --- STEP 5: CURRENT VS PREVIOUS MONTH ANALYST DISTRIBUTION ---
+    st.subheader("👥 Analyst Portfolio Distribution & Monthly Variation")
+    st.markdown("Detailed comparison of active accounts, past due balances, and total credit exposure per analyst compared to the previous month.")
 
-    # Filter out unassigned accounts from analyst statistics to keep active team clean
+    # 1. Clean analyst column and group data for PREVIOUS month
+    df_prev_open_assigned = df_prev_open[
+        ~df_prev_open["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)
+    ]
+    df_prev_dist = df_prev_open_assigned.groupby("Credit Analyst").agg(
+        Account_Count_Prev=("Customer", "count")
+    ).reset_index()
+
+    # 2. Clean analyst column and group data for CURRENT month
     df_curr_open_assigned = df_curr_open[
         ~df_curr_open["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)
     ]
-
-    df_analyst_distribution = df_curr_open_assigned.groupby("Credit Analyst").agg(
-        Account_Count=("Customer", "count"),
+    df_curr_dist = df_curr_open_assigned.groupby("Credit Analyst").agg(
+        Account_Count_Curr=("Customer", "count"),
         Sum_Past_Due=("Total Past Due", "sum"),
         Sum_Balance=("Total Balance", "sum")
     ).reset_index()
 
-    df_analyst_distribution = df_analyst_distribution.sort_values(by="Account_Count", ascending=False)
+    # 3. Merge distributions to compare (keep all analysts from current month, fill missing with 0)
+    df_comparison_dist = pd.merge(
+        df_curr_dist,
+        df_prev_dist,
+        on="Credit Analyst",
+        how="left"
+    )
+    df_comparison_dist["Account_Count_Prev"] = df_comparison_dist["Account_Count_Prev"].fillna(0).astype(int)
 
-    df_analyst_distribution_formatted = df_analyst_distribution.rename(columns={
+    # 4. Calculate Difference and % Variation
+    df_comparison_dist["Difference"] = df_comparison_dist["Account_Count_Curr"] - df_comparison_dist["Account_Count_Prev"]
+    
+    def calculate_percentage_variation(row):
+        prev = row["Account_Count_Prev"]
+        curr = row["Account_Count_Curr"]
+        if prev > 0:
+            return f"{((curr - prev) / prev * 100):+.2f}%"
+        elif curr > 0:
+            return "New (+100%)"
+        else:
+            return "0.00%"
+
+    df_comparison_dist["% Variation"] = df_comparison_dist.apply(calculate_percentage_variation, axis=1)
+
+    # 5. Format and Sort columns
+    df_comparison_dist = df_comparison_dist.sort_values(by="Account_Count_Curr", ascending=False)
+    
+    df_comparison_formatted = df_comparison_dist[[
+        "Credit Analyst", "Account_Count_Prev", "Account_Count_Curr", "Difference", "% Variation", "Sum_Past_Due", "Sum_Balance"
+    ]].rename(columns={
         "Credit Analyst": "Credit Analyst",
-        "Account_Count": "Account Count",
+        "Account_Count_Prev": "Prev Month Count",
+        "Account_Count_Curr": "Current Month Count",
+        "Difference": "Account Net Change",
+        "% Variation": "Count % Change",
         "Sum_Past_Due": "Accumulated Total Past Due",
         "Sum_Balance": "Accumulated Total Balance"
     })
 
+    # Render Styled Table
     st.dataframe(
-        df_analyst_distribution_formatted.style.format({
-            "Account Count": "{:,}",
+        df_comparison_formatted.style.format({
+            "Prev Month Count": "{:,}",
+            "Current Month Count": "{:,}",
+            "Account Net Change": "{:+,}",
             "Accumulated Total Past Due": "${:,.2f}",
             "Accumulated Total Balance": "${:,.2f}"
         }),
@@ -343,25 +383,21 @@ else:
     # --- NEW SECTION: EXECUTIVE SUMMARY (SUMMARY BOX) ---
     st.subheader("📋 Executive Summary & Insights")
     
-    # 1. Calculate critical distribution variables dynamically
-    if not df_analyst_distribution.empty:
-        # Analyst with the most accounts
-        top_account_analyst_row = df_analyst_distribution.loc[df_analyst_distribution["Account_Count"].idxmax()]
+    # Calculate critical distribution variables dynamically
+    if not df_curr_dist.empty:
+        top_account_analyst_row = df_curr_dist.loc[df_curr_dist["Account_Count_Curr"].idxmax()]
         top_acc_analyst = top_account_analyst_row["Credit Analyst"]
-        top_acc_count = top_account_analyst_row["Account_Count"]
+        top_acc_count = top_account_analyst_row["Account_Count_Curr"]
 
-        # Analyst with the most total balance (exposure)
-        top_exposure_analyst_row = df_analyst_distribution.loc[df_analyst_distribution["Sum_Balance"].idxmax()]
+        top_exposure_analyst_row = df_curr_dist.loc[df_curr_dist["Sum_Balance"].idxmax()]
         top_exp_analyst = top_exposure_analyst_row["Credit Analyst"]
         top_exp_balance = top_exposure_analyst_row["Sum_Balance"]
     else:
         top_acc_analyst, top_acc_count = "N/A", 0
         top_exp_analyst, top_exp_balance = "N/A", 0
 
-    # 2. Calculate ratios
     unassigned_ratio = (unassigned_balance_sum / total_balance_curr * 100) if total_balance_curr > 0 else 0
 
-    # Render clean bullet-point list
     col_summary, col_notes = st.columns([2, 1])
 
     with col_summary:
@@ -373,7 +409,6 @@ else:
         """)
         
     with col_notes:
-        # Action Item Highlight Box
         if unassigned_count > 0:
             st.warning(f"💡 **Action Required:** We recommend reviewing and assigning the **{unassigned_count} unassigned accounts** immediately to minimize portfolio risk of **${unassigned_balance_sum:,.2f}**.")
         else:
