@@ -58,14 +58,18 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- BRANDING: AMRIZE LOGO INTEGRATION ---
-# 100% working high-resolution PNG render URL from Wikimedia to bypass hotlinking block
-logo_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cd/Amrize_Logo_2025.svg/960px-Amrize_Logo_2025.svg.png"
+# Local image path - This guarantees the logo will always load, locally and in the cloud!
+logo_path = "logo.png"
 
 # Header columns structure (Adjust width ratio for perfect alignment)
 col_logo, col_title = st.columns([1, 4])
 with col_logo:
-    # Streamlit's native st.image is highly optimized for this PNG URL
-    st.image(logo_url, use_container_width=True)
+    try:
+        # Load local image securely
+        st.image(logo_path, use_container_width=True)
+    except Exception:
+        # Fallback text if the file is not found locally yet
+        st.write("📌 *Amrize*")
 with col_title:
     st.title("Credit & Portfolio Control Dashboard")
 
