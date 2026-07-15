@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 5.67 126.02 22.42">
+  <g clip-path="url(#a)">
+    <g clip-path="url(#b)">
+      <g clip-path="url(#c)">
+        <path fill="#011E6A" d="M40.91 13.143h5.265l6.288 14.928h-4.31l-1.061-2.644h-7.088l-1.062 2.644h-4.31zm4.694 8.598-2.062-5.112-2.061 5.112zm14.077-8.598 3.081 8.125 3.082-8.125h5.787v14.928H67.8v-9.869l-4.345 9.869h-1.387l-4.345-9.869v9.869h-3.831V13.143zm23.895 0c3.53 0 5.226 2.343 5.226 5.06 0 2.145-1.093 4.08-3.112 4.945l2.914 4.923h-4.611l-2.613-4.486h-2.833v4.486h-3.943V13.143zm-.647 6.86c1.146 0 1.884-.625 1.884-1.655s-.76-1.521-1.728-1.521h-4.538v3.175zm8.172-6.86h3.956v14.928h-3.956zm6.345 11.286 8.224-7.6h-8.16v-3.686h13.875v3.58l-8.225 7.662h8.339v3.686H97.446v-3.644zm16.385-11.286H126v3.686h-8.213v1.727h7.6v3.675h-7.6v2.154H126v3.686h-12.169zM29.656 28.07h-9.978l-1.372-4.22 8.116-5.73zM7.276 5.68 0 28.07h9.978l4.85-14.927 1.617 4.976h9.977L22.38 5.68z" style="--darkreader-inline-fill:var(--darkreader-background-011e6a, #011855)"/>
+      </g>
+    </g>
+  </g>
+  <defs>
+    <clipPath id="a">
+      <path fill="#fff" d="M0 0h126v36H0z" style="--darkreader-inline-fill:var(--darkreader-text-ffffff, #e8e6e3)"/>
+    </clipPath>
+    <clipPath id="b">
+      <path fill="#fff" d="M0 0h126.183v25.875H0z" style="--darkreader-inline-fill:var(--darkreader-text-ffffff, #e8e6e3)" transform="translate(0 4.5)"/>
+    </clipPath>
+    <clipPath id="c">
+      <path fill="#fff" d="M0 0h126v22.392H0z" style="--darkreader-inline-fill:var(--darkreader-text-ffffff, #e8e6e3)" transform="translate(0 5.68)"/>
+    </clipPath>
+  </defs>
+</svg>
