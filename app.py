@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import re
 
 # 1. Page Configuration
 st.set_page_config(
@@ -93,7 +94,6 @@ if not st.session_state["logged_in"]:
             
     st.stop()
 
-
 # --- BRANDING: AUTOMATIC LOGO DETECTOR (After Login) ---
 logo_file = None
 possible_names = ["Amrize_Logo_2025.svg", "Amrize_Logo_2025.png", "logo.png", "logo.svg"]
@@ -102,7 +102,6 @@ for name in possible_names:
         logo_file = name
         break
 
-# --- HEADER LAYOUT (LOGO ON TOP, TITLE BELOW) ---
 if logo_file:
     st.image(logo_file, width=280)
 else:
@@ -154,7 +153,6 @@ else:
     
     if st.sidebar.button("Load Google Sheets Data"):
         try:
-            # Extract Spreadsheet Key
             if "/d/" in sheet_url:
                 sheet_id = sheet_url.split("/d/")[1].split("/")[0]
             else:
@@ -180,17 +178,37 @@ if st.sidebar.button("Logout"):
     st.session_state["logged_in"] = False
     st.rerun()
 
-# Check if data is available
 if df_prev_raw is None or df_curr_raw is None:
     st.info("💡 Please upload both previous and current month files or load the Google Sheets data from the sidebar.")
     st.stop()
 
-# --- STEP 2: DATA CLEANING & VALIDATION ---
+# --- STEP 2: ROBUST DATA CLEANING & VALIDATION ---
+
+def sanitize_columns(df):
+    """Strip spaces from column names"""
+    df.columns = df.columns.astype(str).str.strip()
+    return df
+
+df_prev_raw = sanitize_columns(df_prev_raw)
+df_curr_raw = sanitize_columns(df_curr_raw)
+
 required_cols = ["Customer", "Customer Name", "Z-Group", "Credit Analyst", "Total Past Due", "Total Balance"]
 
-if not all(col in df_prev_raw.columns for col in required_cols) or not all(col in df_curr_raw.columns for col in required_cols):
-    st.error(f"Error: Make sure both sources contain at least these columns: {', '.join(required_cols)}")
+missing_prev = [c for c in required_cols if c not in df_prev_raw.columns]
+missing_curr = [c for c in required_cols if c not in df_curr_raw.columns]
+
+if missing_prev or missing_curr:
+    st.error(f"Error: Missing required columns!\nPrevious File Missing: {missing_prev}\nCurrent File Missing: {missing_curr}")
     st.stop()
+
+def clean_currency_series(series):
+    """Converts strings with $, commas, or spaces safely into floats"""
+    return pd.to_numeric(
+        series.astype(str)
+        .str.replace(r'[\$,]', '', regex=True)
+        .str.strip(),
+        errors='coerce'
+    ).fillna(0)
 
 def clean_data(df):
     df_clean = df.copy()
@@ -200,12 +218,17 @@ def clean_data(df):
         df_clean["Total Balance"].astype(str).str.strip().str.upper() != "NOT FOUND"
     ]
     
-    # Convert Customer column to integer and string
-    df_clean["Customer"] = pd.to_numeric(df_clean["Customer"], errors='coerce').fillna(0).astype(int).astype(str)
+    # Convert Customer column safely to string ID
+    df_clean["Customer"] = (
+        pd.to_numeric(df_clean["Customer"].astype(str).str.replace(r'\.0$', '', regex=True), errors='coerce')
+        .fillna(0)
+        .astype(int)
+        .astype(str)
+    )
     
-    # Convert numeric columns
-    df_clean["Total Balance"] = pd.to_numeric(df_clean["Total Balance"], errors='coerce').fillna(0)
-    df_clean["Total Past Due"] = pd.to_numeric(df_clean["Total Past Due"], errors='coerce').fillna(0)
+    # Clean financial numeric columns safely
+    df_clean["Total Balance"] = clean_currency_series(df_clean["Total Balance"])
+    df_clean["Total Past Due"] = clean_currency_series(df_clean["Total Past Due"])
     
     if "Status" in df_clean.columns:
         df_clean["Status"] = df_clean["Status"].fillna("Unspecified").astype(str).str.strip()
@@ -270,7 +293,6 @@ st.write("---")
 st.subheader("🔄 Credit Analyst Assignment Transitions")
 st.markdown("These are the accounts with open AR that transitioned from one specific collections analyst to another (excluding brand-new accounts or previously unassigned accounts).")
 
-# Merge dataframes on Customer
 df_comparison = pd.merge(
     df_prev_clean[["Customer", "Credit Analyst", "Total Past Due", "Total Balance"]],
     df_curr_clean[["Customer", "Customer Name", "Credit Analyst", "Total Past Due", "Total Balance"]],
@@ -401,15 +423,12 @@ st.write("---")
 st.subheader("👥 Analyst Portfolio Distribution & Monthly Variation")
 st.markdown("Detailed comparison of active accounts with open AR, past due balances, and total credit exposure per analyst compared to the previous month.")
 
-# Filter out unassigned
 df_prev_assigned = df_prev_clean[~df_prev_clean["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)]
 df_curr_assigned = df_curr_clean[~df_curr_clean["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)]
 
-# Total Accounts (All)
 prev_total_assigned = df_prev_assigned.groupby("Credit Analyst").agg(Total_Assigned_Prev=("Customer", "count")).reset_index()
 curr_total_assigned = df_curr_assigned.groupby("Credit Analyst").agg(Total_Assigned_Curr=("Customer", "count")).reset_index()
 
-# Open AR Accounts
 df_prev_open_assigned = df_prev_open[~df_prev_open["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)]
 df_curr_open_assigned = df_curr_open[~df_curr_open["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)]
 
@@ -420,12 +439,10 @@ curr_open_dist = df_curr_open_assigned.groupby("Credit Analyst").agg(
     Sum_Balance=("Total Balance", "sum")
 ).reset_index()
 
-# Merge all stats
 df_dist_merged = pd.merge(curr_open_dist, prev_open_dist, on="Credit Analyst", how="outer")
 df_dist_merged = pd.merge(df_dist_merged, curr_total_assigned, on="Credit Analyst", how="outer")
 df_dist_merged = pd.merge(df_dist_merged, prev_total_assigned, on="Credit Analyst", how="outer").fillna(0)
 
-# Calculate Percentage Change for Open AR Accounts Only
 def calc_open_ar_pct(row):
     prev = row["Open_AR_Prev"]
     curr = row["Open_AR_Curr"]
