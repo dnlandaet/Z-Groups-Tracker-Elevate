@@ -11,70 +11,117 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. Custom CSS to inject Brand Colors & Equal Metric Heights
+# 2. Modern UI / Dark-Sleek CSS Design (Inspirado en Dashboards UI/UX Top)
 st.markdown("""
     <style>
-    /* Headers & Title Colors */
-    h1, h2, h3, h4, h5, h6 {
-        color: #011e6a !important;
-        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    /* Global App Background */
+    .stApp {
+        background-color: #0b1120;
+        color: #e2e8f0;
+        font-family: 'Inter', 'Helvetica Neue', sans-serif;
     }
     
-    /* Sidebar Styling */
+    /* Headers & Typography */
+    h1, h2, h3, h4, h5, h6 {
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.5px;
+    }
+    
+    /* Sidebar Modern Styling */
     [data-testid="stSidebar"] {
-        background-color: #011e6a;
+        background-color: #0f172a;
+        border-right: 1px solid #1e293b;
     }
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, 
     [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, 
     [data-testid="stSidebar"] span, [data-testid="stSidebar"] label {
-        color: #ffffff !important;
+        color: #94a3b8 !important;
     }
     
-    /* Metric Card Styling & EQUAL HEIGHT FIX */
+    /* Metric Card Modern UI Fix (Sleek Glassmorphism effect) */
     div[data-testid="stMetric"] {
-        background-color: #f0f5ff;
-        border-left: 5px solid #2a6eff;
-        padding: 15px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        min-height: 130px;
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border: 1px solid #334155;
+        border-left: 5px solid #2563eb !important;
+        padding: 20px;
+        border-radius: 14px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+        min-height: 135px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    div[data-testid="stMetric"]:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 20px -3px rgba(37, 99, 235, 0.2);
+        border-color: #3b82f6;
     }
     div[data-testid="stMetricValue"] {
-        color: #0404bd !important;
-        font-weight: bold;
-        font-size: 26px !important;
+        color: #38bdf8 !important;
+        font-weight: 800;
+        font-size: 30px !important;
         word-break: break-all;
     }
     div[data-testid="stMetricLabel"] {
-        color: #011e6a !important;
-        font-size: 14px;
-        font-weight: 500;
+        color: #94a3b8 !important;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        font-weight: 600;
     }
     
-    /* Info Box / Alert Styling overrides */
+    /* Table & Dataframe Modern Styling */
+    div[data-testid="stDataFrame"] {
+        background-color: #1e293b;
+        border-radius: 12px;
+        padding: 10px;
+        border: 1px solid #334155;
+    }
+
+    /* Info & Alert Styling Override */
     .stAlert {
-        border-left-color: #7cd3ff !important;
+        background-color: #1e293b !important;
+        border: 1px solid #38bdf8 !important;
+        border-left: 5px solid #38bdf8 !important;
+        color: #e2e8f0 !important;
+        border-radius: 12px;
     }
     
     /* Horizontal Dividers */
     hr {
-        border-top: 2px solid #7cd3ff;
+        border-top: 1px solid #1e293b;
+        margin: 2rem 0;
     }
 
     /* Period Badge Styling */
     .period-badge {
-        background-color: #e6f0ff;
-        color: #011e6a;
-        padding: 8px 16px;
-        border-radius: 20px;
+        background: linear-gradient(90deg, #1e3a8a 0%, #0284c7 100%);
+        color: #ffffff;
+        padding: 10px 20px;
+        border-radius: 30px;
         font-weight: 600;
-        font-size: 15px;
+        font-size: 14px;
         display: inline-block;
-        border: 1px solid #7cd3ff;
-        margin-bottom: 15px;
+        box-shadow: 0 4px 10px rgba(2, 132, 199, 0.3);
+        margin-bottom: 20px;
+        letter-spacing: 0.5px;
+    }
+
+    /* Custom Buttons Styling */
+    .stButton>button {
+        background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+        color: white;
+        border-radius: 10px;
+        border: none;
+        padding: 10px 20px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -138,7 +185,6 @@ months_list = [
 ]
 years_list = [2024, 2025, 2026, 2027, 2028, 2029, 2030]
 
-# Mes y Año actuales por defecto
 current_month_index = datetime.now().month - 1
 current_year = datetime.now().year
 
@@ -147,8 +193,8 @@ selected_year = st.sidebar.selectbox("Report Year", options=years_list, index=ye
 
 report_period_str = f"{selected_month} {selected_year}"
 
-# Mostrar Badge de Fecha en la parte superior
-st.markdown(f'<div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>', unsafe_allow_html=True)
+# Badge de Periodo Estilizado
+st.markdown(f'<div class="period-badge">⚡ ACTIVE REPORT PERIOD: <strong>{report_period_str.upper()}</strong></div>', unsafe_allow_html=True)
 st.markdown("Upload your comparative monthly files (Excel or CSV) or connect to Google Sheets to track analyst changes and overall portfolio movement.")
 
 # --- HELPER FUNCTION: UNIVERSAL FILE READER ---
@@ -226,12 +272,9 @@ if df_prev_raw is None or df_curr_raw is None:
 # --- STEP 2: ROBUST DATA CLEANING & VALIDATION ---
 
 def sanitize_and_normalize_columns(df):
-    """Strip spaces and assign Status column if located in Column G (7th column)"""
     df.columns = df.columns.astype(str).str.strip()
-    
     if "Status" not in df.columns and len(df.columns) >= 7:
         df.rename(columns={df.columns[6]: "Status"}, inplace=True)
-        
     return df
 
 df_prev_raw = sanitize_and_normalize_columns(df_prev_raw)
@@ -247,7 +290,6 @@ if missing_prev or missing_curr:
     st.stop()
 
 def clean_currency_series(series):
-    """Converts strings with $, commas, or spaces safely into floats"""
     return pd.to_numeric(
         series.astype(str)
         .str.replace(r'[\$,]', '', regex=True)
@@ -279,7 +321,6 @@ def clean_data(df):
         
     return df_clean
 
-# Base global limpia
 df_prev_global = clean_data(df_prev_raw)
 df_curr_global = clean_data(df_curr_raw)
 
@@ -334,7 +375,6 @@ if available_statuses and available_statuses != ["Unspecified"]:
         df_prev_clean = df_prev_clean[df_prev_clean["Status"].isin(selected_statuses)]
         df_curr_clean = df_curr_clean[df_curr_clean["Status"].isin(selected_statuses)]
 
-# Open Balance datasets (Open AR)
 df_prev_open = df_prev_clean[df_prev_clean["Total Balance"] != 0]
 df_curr_open = df_curr_clean[df_curr_clean["Total Balance"] != 0]
 
