@@ -248,7 +248,7 @@ def clean_data(df):
 df_prev_global = clean_data(df_prev_raw)
 df_curr_global = clean_data(df_curr_raw)
 
-# --- STEP 3: GENERAL PORTFOLIO SUMMARY (BASADO ESTRICTAMENTE EN STATUS == 'ACTIVE' DE LA COLUMNA G) ---
+# --- STEP 3: GENERAL PORTFOLIO SUMMARY ---
 prev_active_accounts = df_prev_global[df_prev_global["Status"].str.upper() == "ACTIVE"]
 curr_active_accounts = df_curr_global[df_curr_global["Status"].str.upper() == "ACTIVE"]
 
@@ -284,7 +284,7 @@ with col3:
 
 st.write("---")
 
-# --- SIDEBAR FILTER: STATUS (APLICA A LAS TABLAS DE DETALLE INFERIORES) ---
+# --- SIDEBAR FILTER: STATUS ---
 df_prev_clean = df_prev_global.copy()
 df_curr_clean = df_curr_global.copy()
 
@@ -397,13 +397,12 @@ else:
 
 st.write("---")
 
-# --- UNASSIGNED ACCOUNTS SECTION (AMBOS VACÍOS: Z-GROUP Y CREDIT ANALYST EN CURRENT) ---
+# --- UNASSIGNED ACCOUNTS SECTION ---
 st.subheader("⚠️ Unassigned Accounts")
 st.markdown("These are current month accounts with an open balance where **BOTH Z-Group and Credit Analyst are empty or unassigned**.")
 
 invalid_zgroups = ["NONE", "NAN", "", "NULL", "NOT FOUND", "NONE."]
 
-# Filtro estricto: AMBOS CAMPOS (Z-Group Y Credit Analyst) son inválidos o vacíos a la vez
 df_unassigned = df_curr_open[
     (
         (df_curr_open["Z-Group"].astype(str).str.strip().str.upper().isin(invalid_zgroups)) |
@@ -447,16 +446,13 @@ st.write("---")
 
 # --- STEP 5: ANALYST PORTFOLIO DISTRIBUTION ---
 st.subheader("👥 Analyst Portfolio Distribution & Monthly Variation")
-st.markdown("Detailed breakdown of analyst portfolios including overall accounts (Active + Inactive) and open AR active exposure.")
 
-# 1. Total cuentas sin importar status (Active e Inactive)
 df_prev_valid_analysts = df_prev_global[~df_prev_global["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)]
 df_curr_valid_analysts = df_curr_global[~df_curr_global["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)]
 
 prev_total_all = df_prev_valid_analysts.groupby("Credit Analyst").agg(Total_Prev_All=("Customer", "count")).reset_index()
 curr_total_all = df_curr_valid_analysts.groupby("Credit Analyst").agg(Total_Curr_All=("Customer", "count")).reset_index()
 
-# 2. Cuentas con Open AR (SOLO ACTIVE)
 df_prev_open_active = df_prev_valid_analysts[
     (df_prev_valid_analysts["Total Balance"] != 0) & 
     (df_prev_valid_analysts["Status"].str.upper() == "ACTIVE")
@@ -474,12 +470,13 @@ curr_open_active_dist = df_curr_open_active.groupby("Credit Analyst").agg(
     Sum_Balance=("Total Balance", "sum")
 ).reset_index()
 
-# Unir métricas en una sola tabla
 df_dist_merged = pd.merge(curr_open_active_dist, prev_open_active_dist, on="Credit Analyst", how="outer")
 df_dist_merged = pd.merge(df_dist_merged, curr_total_all, on="Credit Analyst", how="outer")
 df_dist_merged = pd.merge(df_dist_merged, prev_total_all, on="Credit Analyst", how="outer").fillna(0)
 
-# Calcular % de cambio en Open AR
+# Cálculo de variación neta de cuentas
+df_dist_merged["Account_Diff"] = df_dist_merged["Open_AR_Curr_Active"] - df_dist_merged["Open_AR_Prev_Active"]
+
 def calc_open_ar_pct(row):
     prev = row["Open_AR_Prev_Active"]
     curr = row["Open_AR_Curr_Active"]
@@ -527,40 +524,58 @@ st.dataframe(
 
 st.write("---")
 
-# --- EXECUTIVE SUMMARY ---
+# --- EXECUTIVE SUMMARY & INSIGHTS (RESUMEN AUTOMÁTICO COMPLETO) ---
 st.subheader("📋 Executive Summary & Insights")
 
-if not curr_open_active_dist.empty:
-    top_account_analyst_row = curr_open_active_dist.loc[curr_open_active_dist["Open_AR_Curr_Active"].idxmax()]
-    top_acc_analyst = top_account_analyst_row["Credit Analyst"]
-    top_acc_count = top_account_analyst_row["Open_AR_Curr_Active"]
+# 1. Quien tiene más cuentas
+if not df_dist_merged.empty:
+    top_vol_row = df_dist_merged.loc[df_dist_merged["Open_AR_Curr_Active"].idxmax()]
+    top_vol_analyst = top_vol_row["Credit Analyst"]
+    top_vol_count = int(top_vol_row["Open_AR_Curr_Active"])
 
-    top_exposure_analyst_row = curr_open_active_dist.loc[curr_open_active_dist["Sum_Balance"].idxmax()]
-    top_exp_analyst = top_exposure_analyst_row["Credit Analyst"]
-    top_exp_balance = top_exposure_analyst_row["Sum_Balance"]
+    # Líder en exposición
+    top_exp_row = df_dist_merged.loc[df_dist_merged["Sum_Balance"].idxmax()]
+    top_exp_analyst = top_exp_row["Credit Analyst"]
+    top_exp_balance = top_exp_row["Sum_Balance"]
+
+    # 2. Quien perdió más cuentas y cuánto representa en dinero
+    min_diff_row = df_dist_merged.loc[df_dist_merged["Account_Diff"].idxmin()]
+    lost_analyst = min_diff_row["Credit Analyst"]
+    accounts_lost = int(abs(min_diff_row["Account_Diff"])) if min_diff_row["Account_Diff"] < 0 else 0
+    lost_balance = min_diff_row["Sum_Balance"] if min_diff_row["Account_Diff"] < 0 else 0
 else:
-    top_acc_analyst, top_acc_count = "N/A", 0
+    top_vol_analyst, top_vol_count = "N/A", 0
     top_exp_analyst, top_exp_balance = "N/A", 0
-
-unassigned_ratio = (unassigned_balance_sum / total_balance_active_curr * 100) if total_balance_active_curr > 0 else 0
+    lost_analyst, accounts_lost, lost_balance = "N/A", 0, 0
 
 col_summary, col_notes = st.columns([2, 1])
 
 with col_summary:
-    st.markdown(f"""
-    Workload Leader: {top_acc_analyst} currently manages the largest volume of active clients with {top_acc_count} accounts.
+    summary_text = f"""
+    * **Workload Leader:** **{top_vol_analyst}** manages the highest volume of active clients with **{top_vol_count:,}** accounts.
+    * **Risk Exposure Leader:** **{top_exp_analyst}** holds the highest portfolio risk exposure totaling **${top_exp_balance:,.2f}** in Total Balance.
+    """
     
-    Risk Exposure Leader: {top_exp_analyst} holds the highest portfolio exposure under management, totaling ${top_exp_balance:,.2f} in Total Balance.
-    
-    Transitional Exposure: A total of ${transferred_balance:,.2f} (and ${transferred_past_due:,.2f} in Past Due) has shifted analyst responsibility this month.
-    
-    New Accounts Exposure: {new_accounts_count} new accounts added this month with an open balance totaling ${new_accounts_balance:,.2f}.
-    
-    Unassigned Portfolio: There are {unassigned_count} unassigned accounts, representing {unassigned_ratio:.2f}% of the total open balance (${unassigned_balance_sum:,.2f}).
-    """)
-    
+    if accounts_lost > 0:
+        summary_text += f"""
+    * **Highest Account Reduction:** **{lost_analyst}** reduced their portfolio by **{accounts_lost}** accounts this month, currently representing **${lost_balance:,.2f}** in active balance.
+        """
+    else:
+        summary_text += """
+    * **Highest Account Reduction:** No active analysts experienced a net loss of accounts this month.
+        """
+
+    summary_text += f"""
+    * **New Clients Added:** Identified **{new_accounts_count}** brand-new client accounts this month, representing **${new_accounts_balance:,.2f}** in open balance.
+    * **Unassigned Portfolio:** There are **{unassigned_count}** unassigned accounts without an analyst or Z-Group, representing **${unassigned_balance_sum:,.2f}**.
+    """
+    st.markdown(summary_text)
+
 with col_notes:
     if unassigned_count > 0:
-        st.warning(f"Action Required: We recommend reviewing and assigning the {unassigned_count} unassigned accounts immediately to minimize portfolio risk of ${unassigned_balance_sum:,.2f}.")
+        st.warning(
+            f"⚠️ **Action Required:** We recommend reviewing and assigning analyst ownership to the **{unassigned_count} unassigned accounts** "
+            f"as soon as possible to mitigate financial exposure of **${unassigned_balance_sum:,.2f}**."
+        )
     else:
-        st.success("Outstanding! The entire credit team is fully assigned. No unattended portfolio balances detected this month.")
+        st.success("✅ **Outstanding:** All active open-balance accounts have assigned analysts. Zero unattended balance detected.")
