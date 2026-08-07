@@ -295,7 +295,7 @@ st.write("---")
 
 # --- STEP 4: STRICT ANALYST-TO-ANALYST TRANSITION TABLE ---
 st.subheader("🔄 Credit Analyst Assignment Transitions")
-st.markdown("These are the accounts that transitioned strictly **from one specific analyst to another** (excluding brand-new accounts or unassigned states).")
+st.markdown("These are the accounts that transitioned strictly **from one specific credit analyst to another** (excluding unassigned states or None).")
 
 # Merge dataframes on Customer ID
 df_comparison = pd.merge(
@@ -305,17 +305,20 @@ df_comparison = pd.merge(
     suffixes=("_Previous", "_Current")
 )
 
-df_comparison["Credit Analyst_Previous"] = df_comparison["Credit Analyst_Previous"].astype(str).str.strip()
-df_comparison["Credit Analyst_Current"] = df_comparison["Credit Analyst_Current"].astype(str).str.strip()
+# Convert analyst columns to clean uppercase string
+df_comparison["Credit Analyst_Previous"] = df_comparison["Credit Analyst_Previous"].fillna("").astype(str).str.strip()
+df_comparison["Credit Analyst_Current"] = df_comparison["Credit Analyst_Current"].fillna("").astype(str).str.strip()
 
-# Lista de estados inválidos para descartar unassigned/None
-invalid_states = ["NOT FOUND", "NO CREDIT ANALYST ASSIGNED.", "NAN", "", "NONE", "UNASSIGNED", "NONE."]
+# Lista de estados inválidos para descartar unassigned/None estrictamente
+invalid_states = ["NOT FOUND", "NO CREDIT ANALYST ASSIGNED.", "NAN", "", "NONE", "UNASSIGNED", "NONE.", "NONE", "NULL"]
 
-# Filtro ESTRICTO: Analista previo válido -> Analista actual válido (Diferentes entre sí)
+# Filtro ESTRICTO: Ambos analistas deben ser personas reales y diferentes
 df_analyst_changes = df_comparison[
     (df_comparison["Credit Analyst_Previous"] != df_comparison["Credit Analyst_Current"]) &
     (~df_comparison["Credit Analyst_Previous"].str.upper().isin(invalid_states)) &
-    (~df_comparison["Credit Analyst_Current"].str.upper().isin(invalid_states))
+    (~df_comparison["Credit Analyst_Current"].str.upper().isin(invalid_states)) &
+    (df_comparison["Credit Analyst_Previous"].notna()) &
+    (df_comparison["Credit Analyst_Current"].notna())
 ]
 
 transferred_balance = 0
@@ -328,7 +331,7 @@ if not df_analyst_changes.empty:
         "Total Past Due_Current", "Total Balance_Current"
     ]].rename(columns={
         "Credit Analyst_Previous": "Previous Analyst",
-        "Credit Analyst_Current": "Analyst",
+        "Credit Analyst_Current": "Current Analyst",
         "Total Past Due_Current": "Total Past Due",
         "Total Balance_Current": "Total Balance"
     })
@@ -346,7 +349,7 @@ if not df_analyst_changes.empty:
     transferred_count = len(df_analyst_changes)
     
     st.info(
-        f"💰 **Financial Impact of Assignments:** Identified **{transferred_count}** accounts transferred between analysts, "
+        f"💰 **Financial Impact of Assignments:** Identified **{transferred_count}** accounts transferred between valid analysts, "
         f"representing **${transferred_balance:,.2f}** in Total Balance and **${transferred_past_due:,.2f}** in Total Past Due."
     )
 else:
