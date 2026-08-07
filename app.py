@@ -36,7 +36,7 @@ st.markdown("""
         padding: 15px;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        min-height: 130px; /* Forzar misma altura en los 3 cuadros */
+        min-height: 130px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -248,7 +248,7 @@ df_curr_clean = clean_data(df_curr_raw)
 available_statuses = sorted(list(set(df_prev_clean["Status"].unique()).union(set(df_curr_clean["Status"].unique()))))
 if available_statuses and available_statuses != ["N/A"]:
     selected_statuses = st.sidebar.multiselect(
-        "Filter by Status",
+        "Filter by Status (Active / Inactive)",
         options=available_statuses,
         default=available_statuses
     )
@@ -261,7 +261,6 @@ df_prev_open = df_prev_clean[df_prev_clean["Total Balance"] != 0]
 df_curr_open = df_curr_clean[df_curr_clean["Total Balance"] != 0]
 
 # --- STEP 3: GENERAL PORTFOLIO SUMMARY ---
-# Cuentas activas totales (sin filtrar por saldo)
 prev_active_count = len(df_prev_clean)
 curr_active_count = len(df_curr_clean)
 
@@ -294,10 +293,11 @@ with col3:
 
 st.write("---")
 
-# --- STEP 4: TRANSITION TABLE ---
+# --- STEP 4: STRICT ANALYST-TO-ANALYST TRANSITION TABLE ---
 st.subheader("🔄 Credit Analyst Assignment Transitions")
-st.markdown("These are the accounts with open AR that transitioned from one specific collections analyst to another (excluding brand-new accounts or previously unassigned accounts).")
+st.markdown("These are the accounts that transitioned strictly **from one specific analyst to another** (excluding brand-new accounts or unassigned states).")
 
+# Merge dataframes on Customer ID
 df_comparison = pd.merge(
     df_prev_clean[["Customer", "Credit Analyst", "Total Past Due", "Total Balance"]],
     df_curr_clean[["Customer", "Customer Name", "Credit Analyst", "Total Past Due", "Total Balance"]],
@@ -308,8 +308,10 @@ df_comparison = pd.merge(
 df_comparison["Credit Analyst_Previous"] = df_comparison["Credit Analyst_Previous"].astype(str).str.strip()
 df_comparison["Credit Analyst_Current"] = df_comparison["Credit Analyst_Current"].astype(str).str.strip()
 
-invalid_states = ["NOT FOUND", "NO CREDIT ANALYST ASSIGNED.", "NAN", "", "NONE", "UNASSIGNED"]
+# Lista de estados inválidos para descartar unassigned/None
+invalid_states = ["NOT FOUND", "NO CREDIT ANALYST ASSIGNED.", "NAN", "", "NONE", "UNASSIGNED", "NONE."]
 
+# Filtro ESTRICTO: Analista previo válido -> Analista actual válido (Diferentes entre sí)
 df_analyst_changes = df_comparison[
     (df_comparison["Credit Analyst_Previous"] != df_comparison["Credit Analyst_Current"]) &
     (~df_comparison["Credit Analyst_Previous"].str.upper().isin(invalid_states)) &
@@ -341,13 +343,14 @@ if not df_analyst_changes.empty:
     
     transferred_past_due = df_analyst_changes["Total Past Due_Current"].sum()
     transferred_balance = df_analyst_changes["Total Balance_Current"].sum()
+    transferred_count = len(df_analyst_changes)
     
     st.info(
-        f"Financial Impact of Assignments: Transferred accounts represent a total of "
-        f"${transferred_balance:,.2f} in Total Balance and ${transferred_past_due:,.2f} in Total Past Due."
+        f"💰 **Financial Impact of Assignments:** Identified **{transferred_count}** accounts transferred between analysts, "
+        f"representing **${transferred_balance:,.2f}** in Total Balance and **${transferred_past_due:,.2f}** in Total Past Due."
     )
 else:
-    st.success("No credit analyst assignment transitions were detected between valid analysts.")
+    st.success("✅ No credit analyst assignment transitions were detected between valid analysts for the selected status filter.")
 
 st.write("---")
 
