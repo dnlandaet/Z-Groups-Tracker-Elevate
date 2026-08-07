@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import re
+from datetime import datetime
 
 # 1. Page Configuration
 st.set_page_config(
@@ -62,6 +63,19 @@ st.markdown("""
     hr {
         border-top: 2px solid #7cd3ff;
     }
+
+    /* Period Badge Styling */
+    .period-badge {
+        background-color: #e6f0ff;
+        color: #011e6a;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 15px;
+        display: inline-block;
+        border: 1px solid #7cd3ff;
+        margin-bottom: 15px;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -114,6 +128,27 @@ else:
     st.info("⚠️ Place 'Amrize_Logo_2025.svg' or 'logo.png' in your project folder.")
 
 st.title("Z-Groups Tracker Elevate")
+
+# --- SIDEBAR: SELECTOR DE MES Y AÑO DEL REPORTE ---
+st.sidebar.header("🗓️ Report Period Selection")
+
+months_list = [
+    "January", "February", "March", "April", "May", "June", 
+    "July", "August", "September", "October", "November", "December"
+]
+years_list = [2024, 2025, 2026, 2027, 2028, 2029, 2030]
+
+# Mes y Año actuales por defecto
+current_month_index = datetime.now().month - 1
+current_year = datetime.now().year
+
+selected_month = st.sidebar.selectbox("Report Month", options=months_list, index=current_month_index)
+selected_year = st.sidebar.selectbox("Report Year", options=years_list, index=years_list.index(current_year) if current_year in years_list else 2)
+
+report_period_str = f"{selected_month} {selected_year}"
+
+# Mostrar Badge de Fecha en la parte superior
+st.markdown(f'<div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>', unsafe_allow_html=True)
 st.markdown("Upload your comparative monthly files (Excel or CSV) or connect to Google Sheets to track analyst changes and overall portfolio movement.")
 
 # --- HELPER FUNCTION: UNIVERSAL FILE READER ---
@@ -271,14 +306,14 @@ with col1:
     )
 with col2:
     st.metric(
-        label="Active Accounts (Current Month)", 
+        label=f"Active Accounts ({report_period_str})", 
         value=f"{curr_active_count:,}", 
         delta=variation_str_active
     )
 with col3:
     total_balance_active_curr = curr_active_accounts[curr_active_accounts["Total Balance"] != 0]["Total Balance"].sum()
     st.metric(
-        label="Total Active Balance (Current Month)", 
+        label=f"Total Active Balance ({report_period_str})", 
         value=f"${total_balance_active_curr:,.2f}"
     )
 
@@ -355,17 +390,17 @@ if not df_analyst_changes.empty:
     transferred_count = len(df_analyst_changes)
     
     st.info(
-        f"💰 **Financial Impact of Assignments:** Identified **{transferred_count}** accounts transferred between valid analysts, "
+        f"💰 **Financial Impact of Assignments:** Identified **{transferred_count}** accounts transferred between valid analysts for {report_period_str}, "
         f"representing **${transferred_balance:,.2f}** in Total Balance and **${transferred_past_due:,.2f}** in Total Past Due."
     )
 else:
-    st.success("✅ No credit analyst assignment transitions were detected between valid analysts for the selected status filter.")
+    st.success(f"✅ No credit analyst assignment transitions were detected between valid analysts for {report_period_str}.")
 
 st.write("---")
 
 # --- NEW SECTION: NEW ACCOUNTS OF THE MONTH ---
 st.subheader("✨ New Accounts of the Month")
-st.markdown("These are new active accounts identified in the current month with open AR that did not exist in the previous month report.")
+st.markdown(f"These are new active accounts identified in **{report_period_str}** with open AR that did not exist in the previous month report.")
 
 prev_customer_ids = set(df_prev_clean["Customer"].unique())
 df_new_accounts = df_curr_open[~df_curr_open["Customer"].isin(prev_customer_ids)]
@@ -390,16 +425,16 @@ if not df_new_accounts.empty:
         use_container_width=True
     )
     st.info(
-        f"New Accounts Impact: Identified {new_accounts_count} new open AR accounts with a combined balance of ${new_accounts_balance:,.2f}."
+        f"New Accounts Impact: Identified {new_accounts_count} new open AR accounts in {report_period_str} with a combined balance of ${new_accounts_balance:,.2f}."
     )
 else:
-    st.success("No new open AR accounts were identified for the current month.")
+    st.success(f"No new open AR accounts were identified for {report_period_str}.")
 
 st.write("---")
 
 # --- UNASSIGNED ACCOUNTS SECTION ---
 st.subheader("⚠️ Unassigned Accounts")
-st.markdown("These are current month accounts with an open balance where **BOTH Z-Group and Credit Analyst are empty or unassigned**.")
+st.markdown(f"These are **{report_period_str}** accounts with an open balance where **BOTH Z-Group and Credit Analyst are empty or unassigned**.")
 
 invalid_zgroups = ["NONE", "NAN", "", "NULL", "NOT FOUND", "NONE."]
 
@@ -436,15 +471,15 @@ if not df_unassigned.empty:
 
     unassigned_balance_sum = df_unassigned["Total Balance"].sum()
     st.warning(
-        f"Total Exposure Unassigned: There are {unassigned_count} accounts with open balance currently missing BOTH Z-Group and Credit Analyst, "
+        f"Total Exposure Unassigned: There are {unassigned_count} accounts in {report_period_str} with open balance missing BOTH Z-Group and Credit Analyst, "
         f"representing a total of ${unassigned_balance_sum:,.2f}."
     )
 else:
-    st.success("Great! No active open-balance accounts were found with both Z-Group and Credit Analyst empty for the selected status filter.")
+    st.success(f"Great! No active open-balance accounts were found with both Z-Group and Credit Analyst empty in {report_period_str}.")
 
 st.write("---")
 
-# --- STEP 5: ANALYST PORTFOLIO DISTRIBUTION (RENOMBRADO PREV/CURR ACC OPEN AR) ---
+# --- STEP 5: ANALYST PORTFOLIO DISTRIBUTION ---
 st.subheader("👥 Analyst Portfolio Distribution & Monthly Variation")
 
 df_prev_valid_analysts = df_prev_global[~df_prev_global["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)]
@@ -489,7 +524,6 @@ def calc_open_ar_pct(row):
 df_dist_merged["Open AR % Change"] = df_dist_merged.apply(calc_open_ar_pct, axis=1)
 df_dist_merged = df_dist_merged.sort_values(by="Open_AR_Curr_Active", ascending=False)
 
-# Renombrado de columnas con Acc
 df_dist_final = df_dist_merged[[
     "Credit Analyst", 
     "Total_Prev_All", 
@@ -525,7 +559,7 @@ st.dataframe(
 st.write("---")
 
 # --- EXECUTIVE SUMMARY & INSIGHTS ---
-st.subheader("📋 Executive Summary & Insights")
+st.subheader(f"📋 Executive Summary & Insights ({report_period_str})")
 
 if not df_dist_merged.empty:
     top_vol_row = df_dist_merged.loc[df_dist_merged["Open_AR_Curr_Active"].idxmax()]
@@ -539,7 +573,7 @@ else:
     top_vol_analyst, top_vol_count = "N/A", 0
     top_exp_analyst, top_exp_balance = "N/A", 0
 
-# Cuentas retiradas a analistas válidos y su saldo en Current Month
+# Cuentas retiradas a analistas válidos
 df_account_match = pd.merge(
     df_prev_global[["Customer", "Credit Analyst"]],
     df_curr_global[["Customer", "Credit Analyst", "Total Balance"]],
@@ -578,15 +612,15 @@ with col_summary:
     
     if accounts_lost > 0:
         summary_text += f"""
-    * **Highest Account Reduction:** **{lost_analyst}** had **{accounts_lost}** accounts removed from their portfolio this month, representing **${lost_balance_real:,.2f}** in Total Balance (based on current month values).
+    * **Highest Account Reduction:** **{lost_analyst}** had **{accounts_lost}** accounts removed from their portfolio in **{report_period_str}**, representing **${lost_balance_real:,.2f}** in Total Balance (based on current month values).
         """
     else:
-        summary_text += """
-    * **Highest Account Reduction:** No active analysts experienced account removals this month.
+        summary_text += f"""
+    * **Highest Account Reduction:** No active analysts experienced account removals in **{report_period_str}**.
         """
 
     summary_text += f"""
-    * **New Clients Added:** Identified **{new_accounts_count}** brand-new client accounts this month, representing **${new_accounts_balance:,.2f}** in open balance.
+    * **New Clients Added:** Identified **{new_accounts_count}** brand-new client accounts in **{report_period_str}**, representing **${new_accounts_balance:,.2f}** in open balance.
     * **Unassigned Portfolio:** There are **{unassigned_count}** unassigned accounts missing both Z-Group and Credit Analyst, representing **${unassigned_balance_sum:,.2f}**.
     """
     st.markdown(summary_text)
@@ -595,7 +629,7 @@ with col_notes:
     if unassigned_count > 0:
         st.warning(
             f"⚠️ **Action Required:** We recommend reviewing and assigning analyst ownership to the **{unassigned_count} unassigned accounts** "
-            f"as soon as possible to mitigate financial exposure of **${unassigned_balance_sum:,.2f}**."
+            f"as soon as possible to mitigate financial exposure of **${unassigned_balance_sum:,.2f}** for **{report_period_str}**."
         )
     else:
-        st.success("✅ **Outstanding:** All active open-balance accounts have assigned analysts. Zero unattended balance detected.")
+        st.success(f"✅ **Outstanding:** All active open-balance accounts have assigned analysts in {report_period_str}. Zero unattended balance detected.")
