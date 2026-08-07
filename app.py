@@ -44,6 +44,8 @@ st.markdown("""
     div[data-testid="stMetricValue"] {
         color: #0404bd !important;
         font-weight: bold;
+        font-size: 26px !important;
+        word-break: break-all;
     }
     div[data-testid="stMetricLabel"] {
         color: #011e6a !important;
@@ -241,10 +243,47 @@ def clean_data(df):
         
     return df_clean
 
-df_prev_clean = clean_data(df_prev_raw)
-df_curr_clean = clean_data(df_curr_raw)
+# Base global limpia SIN filtrar por Status
+df_prev_global = clean_data(df_prev_raw)
+df_curr_global = clean_data(df_curr_raw)
 
-# --- SIDEBAR FILTER: STATUS ---
+# --- STEP 3: GENERAL PORTFOLIO SUMMARY (INDEPENDIENTE DEL FILTRO DE STATUS) ---
+prev_active_count_global = len(df_prev_global)
+curr_active_count_global = len(df_curr_global)
+
+if prev_active_count_global > 0:
+    variation_global = ((curr_active_count_global - prev_active_count_global) / prev_active_count_global) * 100
+    variation_str_global = f"{variation_global:+.2f}%"
+else:
+    variation_str_global = "N/A"
+
+st.subheader("📌 General Portfolio Summary")
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(
+        label="Active Accounts (Previous Month)", 
+        value=f"{prev_active_count_global:,}"
+    )
+with col2:
+    st.metric(
+        label="Active Accounts (Current Month)", 
+        value=f"{curr_active_count_global:,}", 
+        delta=variation_str_global
+    )
+with col3:
+    total_balance_curr_global = df_curr_global[df_curr_global["Total Balance"] != 0]["Total Balance"].sum()
+    st.metric(
+        label="Total Active Balance (Current Month)", 
+        value=f"${total_balance_curr_global:,.2f}"
+    )
+
+st.write("---")
+
+# --- SIDEBAR FILTER: STATUS (SOLO APLICA PARA LAS SECCIONES DE ABAJO) ---
+df_prev_clean = df_prev_global.copy()
+df_curr_clean = df_curr_global.copy()
+
 available_statuses = sorted(list(set(df_prev_clean["Status"].unique()).union(set(df_curr_clean["Status"].unique()))))
 if available_statuses and available_statuses != ["N/A"]:
     selected_statuses = st.sidebar.multiselect(
@@ -259,39 +298,6 @@ if available_statuses and available_statuses != ["N/A"]:
 # Open Balance datasets (Open AR)
 df_prev_open = df_prev_clean[df_prev_clean["Total Balance"] != 0]
 df_curr_open = df_curr_clean[df_curr_clean["Total Balance"] != 0]
-
-# --- STEP 3: GENERAL PORTFOLIO SUMMARY ---
-prev_active_count = len(df_prev_clean)
-curr_active_count = len(df_curr_clean)
-
-if prev_active_count > 0:
-    variation = ((curr_active_count - prev_active_count) / prev_active_count) * 100
-    variation_str = f"{variation:+.2f}%"
-else:
-    variation_str = "N/A"
-
-st.subheader("📌 General Portfolio Summary")
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.metric(
-        label="Active Accounts (Previous Month)", 
-        value=f"{prev_active_count:,}"
-    )
-with col2:
-    st.metric(
-        label="Active Accounts (Current Month)", 
-        value=f"{curr_active_count:,}", 
-        delta=variation_str
-    )
-with col3:
-    total_balance_curr = df_curr_open["Total Balance"].sum()
-    st.metric(
-        label="Total Active Balance (Current Month)", 
-        value=f"${total_balance_curr:,.2f}"
-    )
-
-st.write("---")
 
 # --- STEP 4: STRICT ANALYST-TO-ANALYST TRANSITION TABLE ---
 st.subheader("🔄 Credit Analyst Assignment Transitions")
@@ -310,7 +316,7 @@ df_comparison["Credit Analyst_Previous"] = df_comparison["Credit Analyst_Previou
 df_comparison["Credit Analyst_Current"] = df_comparison["Credit Analyst_Current"].fillna("").astype(str).str.strip()
 
 # Lista de estados inválidos para descartar unassigned/None estrictamente
-invalid_states = ["NOT FOUND", "NO CREDIT ANALYST ASSIGNED.", "NAN", "", "NONE", "UNASSIGNED", "NONE.", "NONE", "NULL"]
+invalid_states = ["NOT FOUND", "NO CREDIT ANALYST ASSIGNED.", "NAN", "", "NONE", "UNASSIGNED", "NONE.", "NULL"]
 
 # Filtro ESTRICTO: Ambos analistas deben ser personas reales y diferentes
 df_analyst_changes = df_comparison[
@@ -512,7 +518,7 @@ else:
     top_acc_analyst, top_acc_count = "N/A", 0
     top_exp_analyst, top_exp_balance = "N/A", 0
 
-unassigned_ratio = (unassigned_balance_sum / total_balance_curr * 100) if total_balance_curr > 0 else 0
+unassigned_ratio = (unassigned_balance_sum / total_balance_curr_global * 100) if total_balance_curr_global > 0 else 0
 
 col_summary, col_notes = st.columns([2, 1])
 
