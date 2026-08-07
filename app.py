@@ -474,7 +474,6 @@ df_dist_merged = pd.merge(curr_open_active_dist, prev_open_active_dist, on="Cred
 df_dist_merged = pd.merge(df_dist_merged, curr_total_all, on="Credit Analyst", how="outer")
 df_dist_merged = pd.merge(df_dist_merged, prev_total_all, on="Credit Analyst", how="outer").fillna(0)
 
-# Cálculo de variación neta de cuentas
 df_dist_merged["Account_Diff"] = df_dist_merged["Open_AR_Curr_Active"] - df_dist_merged["Open_AR_Prev_Active"]
 
 def calc_open_ar_pct(row):
@@ -524,29 +523,51 @@ st.dataframe(
 
 st.write("---")
 
-# --- EXECUTIVE SUMMARY & INSIGHTS (RESUMEN AUTOMÁTICO COMPLETO) ---
+# --- EXECUTIVE SUMMARY & INSIGHTS (CÁLCULO EXACTO DE CUENTAS PERDIDAS) ---
 st.subheader("📋 Executive Summary & Insights")
 
-# 1. Quien tiene más cuentas
+# 1. Quien tiene más cuentas y líder en exposición
 if not df_dist_merged.empty:
     top_vol_row = df_dist_merged.loc[df_dist_merged["Open_AR_Curr_Active"].idxmax()]
     top_vol_analyst = top_vol_row["Credit Analyst"]
     top_vol_count = int(top_vol_row["Open_AR_Curr_Active"])
 
-    # Líder en exposición
     top_exp_row = df_dist_merged.loc[df_dist_merged["Sum_Balance"].idxmax()]
     top_exp_analyst = top_exp_row["Credit Analyst"]
     top_exp_balance = top_exp_row["Sum_Balance"]
-
-    # 2. Quien perdió más cuentas y cuánto representa en dinero
-    min_diff_row = df_dist_merged.loc[df_dist_merged["Account_Diff"].idxmin()]
-    lost_analyst = min_diff_row["Credit Analyst"]
-    accounts_lost = int(abs(min_diff_row["Account_Diff"])) if min_diff_row["Account_Diff"] < 0 else 0
-    lost_balance = min_diff_row["Sum_Balance"] if min_diff_row["Account_Diff"] < 0 else 0
 else:
     top_vol_analyst, top_vol_count = "N/A", 0
     top_exp_analyst, top_exp_balance = "N/A", 0
-    lost_analyst, accounts_lost, lost_balance = "N/A", 0, 0
+
+# 2. CÁLCULO EXACTO: CUENTAS QUE SE LE QUITARON A CADA ANALISTA Y SU DINERO EN CURRENT MONTH
+df_account_match = pd.merge(
+    df_prev_global[["Customer", "Credit Analyst"]],
+    df_curr_global[["Customer", "Credit Analyst", "Total Balance"]],
+    on="Customer",
+    suffixes=("_Prev", "_Curr")
+)
+
+df_account_match["Credit Analyst_Prev"] = df_account_match["Credit Analyst_Prev"].fillna("").astype(str).str.strip()
+df_account_match["Credit Analyst_Curr"] = df_account_match["Credit Analyst_Curr"].fillna("").astype(str).str.strip()
+
+# Cuentas retiradas a analistas válidos
+df_lost_accounts = df_account_match[
+    (~df_account_match["Credit Analyst_Prev"].str.upper().isin(invalid_states)) &
+    (df_account_match["Credit Analyst_Prev"] != df_account_match["Credit Analyst_Curr"])
+]
+
+lost_summary = df_lost_accounts.groupby("Credit Analyst_Prev").agg(
+    Lost_Count=("Customer", "count"),
+    Lost_Balance_Current=("Total Balance", "sum")
+).reset_index()
+
+if not lost_summary.empty:
+    max_lost_row = lost_summary.loc[lost_summary["Lost_Count"].idxmax()]
+    lost_analyst = max_lost_row["Credit Analyst_Prev"]
+    accounts_lost = int(max_lost_row["Lost_Count"])
+    lost_balance_real = max_lost_row["Lost_Balance_Current"]
+else:
+    lost_analyst, accounts_lost, lost_balance_real = "N/A", 0, 0
 
 col_summary, col_notes = st.columns([2, 1])
 
@@ -558,16 +579,16 @@ with col_summary:
     
     if accounts_lost > 0:
         summary_text += f"""
-    * **Highest Account Reduction:** **{lost_analyst}** reduced their portfolio by **{accounts_lost}** accounts this month, currently representing **${lost_balance:,.2f}** in active balance.
+    * **Highest Account Reduction:** **{lost_analyst}** had **{accounts_lost}** accounts removed from their portfolio this month, representing **${lost_balance_real:,.2f}** in Total Balance (based on current month values).
         """
     else:
         summary_text += """
-    * **Highest Account Reduction:** No active analysts experienced a net loss of accounts this month.
+    * **Highest Account Reduction:** No active analysts experienced account removals this month.
         """
 
     summary_text += f"""
     * **New Clients Added:** Identified **{new_accounts_count}** brand-new client accounts this month, representing **${new_accounts_balance:,.2f}** in open balance.
-    * **Unassigned Portfolio:** There are **{unassigned_count}** unassigned accounts without an analyst or Z-Group, representing **${unassigned_balance_sum:,.2f}**.
+    * **Unassigned Portfolio:** There are **{unassigned_count}** unassigned accounts missing both Z-Group and Credit Analyst, representing **${unassigned_balance_sum:,.2f}**.
     """
     st.markdown(summary_text)
 
