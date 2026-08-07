@@ -436,42 +436,44 @@ else:
 
 st.write("---")
 
-# --- STEP 5: ANALYST PORTFOLIO DISTRIBUTION (ESTRICTAMENTE FILTRADO A CUENTAS 'ACTIVE' DE LA COLUMNA G) ---
+# --- STEP 5: ANALYST PORTFOLIO DISTRIBUTION (REGLAS DE MUESTRA EXACTAS REQUERIDAS) ---
 st.subheader("👥 Analyst Portfolio Distribution & Monthly Variation")
-st.markdown("Detailed comparison of active accounts with open AR, past due balances, and total credit exposure per analyst compared to the previous month.")
+st.markdown("Detailed breakdown of analyst portfolios including overall accounts (Active + Inactive) and open AR active exposure.")
 
-# Filtrar explícitamente bases a cuentas 'ACTIVE' para el conteo de portafolio asignado
-df_prev_assigned_active = df_prev_global[
-    (~df_prev_global["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)) &
-    (df_prev_global["Status"].str.upper() == "ACTIVE")
+# 1. Total cuentas sin importar status (Active e Inactive)
+df_prev_valid_analysts = df_prev_global[~df_prev_global["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)]
+df_curr_valid_analysts = df_curr_global[~df_curr_global["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)]
+
+prev_total_all = df_prev_valid_analysts.groupby("Credit Analyst").agg(Total_Prev_All=("Customer", "count")).reset_index()
+curr_total_all = df_curr_valid_analysts.groupby("Credit Analyst").agg(Total_Curr_All=("Customer", "count")).reset_index()
+
+# 2. Cuentas con Open AR (SOLO ACTIVE)
+df_prev_open_active = df_prev_valid_analysts[
+    (df_prev_valid_analysts["Total Balance"] != 0) & 
+    (df_prev_valid_analysts["Status"].str.upper() == "ACTIVE")
 ]
 
-df_curr_assigned_active = df_curr_global[
-    (~df_curr_global["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)) &
-    (df_curr_global["Status"].str.upper() == "ACTIVE")
+df_curr_open_active = df_curr_valid_analysts[
+    (df_curr_valid_analysts["Total Balance"] != 0) & 
+    (df_curr_valid_analysts["Status"].str.upper() == "ACTIVE")
 ]
 
-prev_total_assigned = df_prev_assigned_active.groupby("Credit Analyst").agg(Total_Assigned_Prev=("Customer", "count")).reset_index()
-curr_total_assigned = df_curr_assigned_active.groupby("Credit Analyst").agg(Total_Assigned_Curr=("Customer", "count")).reset_index()
-
-# Open AR Accounts (Active + Balance != 0)
-df_prev_open_assigned_active = df_prev_assigned_active[df_prev_assigned_active["Total Balance"] != 0]
-df_curr_open_assigned_active = df_curr_assigned_active[df_curr_assigned_active["Total Balance"] != 0]
-
-prev_open_dist = df_prev_open_assigned_active.groupby("Credit Analyst").agg(Open_AR_Prev=("Customer", "count")).reset_index()
-curr_open_dist = df_curr_open_assigned_active.groupby("Credit Analyst").agg(
-    Open_AR_Curr=("Customer", "count"),
+prev_open_active_dist = df_prev_open_active.groupby("Credit Analyst").agg(Open_AR_Prev_Active=("Customer", "count")).reset_index()
+curr_open_active_dist = df_curr_open_active.groupby("Credit Analyst").agg(
+    Open_AR_Curr_Active=("Customer", "count"),
     Sum_Past_Due=("Total Past Due", "sum"),
     Sum_Balance=("Total Balance", "sum")
 ).reset_index()
 
-df_dist_merged = pd.merge(curr_open_dist, prev_open_dist, on="Credit Analyst", how="outer")
-df_dist_merged = pd.merge(df_dist_merged, curr_total_assigned, on="Credit Analyst", how="outer")
-df_dist_merged = pd.merge(df_dist_merged, prev_total_assigned, on="Credit Analyst", how="outer").fillna(0)
+# Unir métricas en una sola tabla
+df_dist_merged = pd.merge(curr_open_active_dist, prev_open_active_dist, on="Credit Analyst", how="outer")
+df_dist_merged = pd.merge(df_dist_merged, curr_total_all, on="Credit Analyst", how="outer")
+df_dist_merged = pd.merge(df_dist_merged, prev_total_all, on="Credit Analyst", how="outer").fillna(0)
 
+# Calcular % de cambio en Open AR
 def calc_open_ar_pct(row):
-    prev = row["Open_AR_Prev"]
-    curr = row["Open_AR_Curr"]
+    prev = row["Open_AR_Prev_Active"]
+    curr = row["Open_AR_Curr_Active"]
     if prev > 0:
         return f"{((curr - prev) / prev * 100):+.2f}%"
     elif curr > 0:
@@ -480,19 +482,24 @@ def calc_open_ar_pct(row):
         return "0.00%"
 
 df_dist_merged["Open AR % Change"] = df_dist_merged.apply(calc_open_ar_pct, axis=1)
-df_dist_merged = df_dist_merged.sort_values(by="Open_AR_Curr", ascending=False)
+df_dist_merged = df_dist_merged.sort_values(by="Open_AR_Curr_Active", ascending=False)
 
+# Reordenar y formatear con encabezados ejecutivos claros
 df_dist_final = df_dist_merged[[
     "Credit Analyst", 
-    "Total_Assigned_Prev", "Total_Assigned_Curr",
-    "Open_AR_Prev", "Open_AR_Curr", 
-    "Open AR % Change", "Sum_Past_Due", "Sum_Balance"
+    "Total_Prev_All", 
+    "Total_Curr_All",
+    "Open_AR_Prev_Active", 
+    "Open_AR_Curr_Active", 
+    "Open AR % Change", 
+    "Sum_Past_Due", 
+    "Sum_Balance"
 ]].rename(columns={
     "Credit Analyst": "Credit Analyst",
-    "Total_Assigned_Prev": "Total Assigned Accounts (Previous)",
-    "Total_Assigned_Curr": "Total Assigned Accounts",
-    "Open_AR_Prev": "Open AR Accounts (Previous)",
-    "Open_AR_Curr": "Open AR Accounts",
+    "Total_Prev_All": "Prev Accounts (All)",
+    "Total_Curr_All": "Curr Accounts (All)",
+    "Open_AR_Prev_Active": "Prev Open AR (Active)",
+    "Open_AR_Curr_Active": "Curr Open AR (Active)",
     "Open AR % Change": "Open AR % Change",
     "Sum_Past_Due": "Total Past Due",
     "Sum_Balance": "Total Balance"
@@ -500,10 +507,10 @@ df_dist_final = df_dist_merged[[
 
 st.dataframe(
     df_dist_final.style.format({
-        "Total Assigned Accounts (Previous)": "{:,.0f}",
-        "Total Assigned Accounts": "{:,.0f}",
-        "Open AR Accounts (Previous)": "{:,.0f}",
-        "Open AR Accounts": "{:,.0f}",
+        "Prev Accounts (All)": "{:,.0f}",
+        "Curr Accounts (All)": "{:,.0f}",
+        "Prev Open AR (Active)": "{:,.0f}",
+        "Curr Open AR (Active)": "{:,.0f}",
         "Total Past Due": "${:,.2f}",
         "Total Balance": "${:,.2f}"
     }),
@@ -515,12 +522,12 @@ st.write("---")
 # --- EXECUTIVE SUMMARY ---
 st.subheader("📋 Executive Summary & Insights")
 
-if not curr_open_dist.empty:
-    top_account_analyst_row = curr_open_dist.loc[curr_open_dist["Open_AR_Curr"].idxmax()]
+if not curr_open_active_dist.empty:
+    top_account_analyst_row = curr_open_active_dist.loc[curr_open_active_dist["Open_AR_Curr_Active"].idxmax()]
     top_acc_analyst = top_account_analyst_row["Credit Analyst"]
-    top_acc_count = top_account_analyst_row["Open_AR_Curr"]
+    top_acc_count = top_account_analyst_row["Open_AR_Curr_Active"]
 
-    top_exposure_analyst_row = curr_open_dist.loc[curr_open_dist["Sum_Balance"].idxmax()]
+    top_exposure_analyst_row = curr_open_active_dist.loc[curr_open_active_dist["Sum_Balance"].idxmax()]
     top_exp_analyst = top_exposure_analyst_row["Credit Analyst"]
     top_exp_balance = top_exposure_analyst_row["Sum_Balance"]
 else:
