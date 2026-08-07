@@ -109,28 +109,43 @@ else:
     st.info("⚠️ Place 'Amrize_Logo_2025.svg' or 'logo.png' in your project folder.")
 
 st.title("Z-Groups Tracker Elevate")
-st.markdown("Upload your comparative monthly files or connect to Google Sheets to track analyst changes and overall portfolio movement.")
+st.markdown("Upload your comparative monthly files (Excel or CSV) or connect to Google Sheets to track analyst changes and overall portfolio movement.")
+
+# --- HELPER FUNCTION: UNIVERSAL FILE READER ---
+def load_data_file(uploaded_file):
+    """Dynamically reads Excel (.xlsx, .xls) and CSV files"""
+    if uploaded_file is not None:
+        file_name = uploaded_file.name.lower()
+        if file_name.endswith('.csv'):
+            try:
+                return pd.read_csv(uploaded_file, encoding='utf-8')
+            except UnicodeDecodeError:
+                uploaded_file.seek(0)
+                return pd.read_csv(uploaded_file, encoding='latin1')
+        else:
+            return pd.read_excel(uploaded_file)
+    return None
 
 # --- STEP 1: DATA SOURCE SELECTION ---
 st.sidebar.header("Data Source Selection")
 data_source = st.sidebar.radio(
     "Choose Data Source:",
-    ("Upload Excel Files", "Connect Google Sheets")
+    ("Upload Files (Excel / CSV)", "Connect Google Sheets")
 )
 
 df_prev_raw = None
 df_curr_raw = None
 
-if data_source == "Upload Excel Files":
-    prev_file = st.sidebar.file_uploader("Upload PREVIOUS MONTH file (Excel)", type=["xlsx", "xls"])
-    curr_file = st.sidebar.file_uploader("Upload CURRENT MONTH file (Excel)", type=["xlsx", "xls"])
+if data_source == "Upload Files (Excel / CSV)":
+    prev_file = st.sidebar.file_uploader("Upload PREVIOUS MONTH file", type=["xlsx", "xls", "csv"])
+    curr_file = st.sidebar.file_uploader("Upload CURRENT MONTH file", type=["xlsx", "xls", "csv"])
     
     if prev_file and curr_file:
         try:
-            df_prev_raw = pd.read_excel(prev_file)
-            df_curr_raw = pd.read_excel(curr_file)
+            df_prev_raw = load_data_file(prev_file)
+            df_curr_raw = load_data_file(curr_file)
         except Exception as e:
-            st.error(f"Error reading Excel files: {e}")
+            st.error(f"Error reading uploaded files: {e}")
             st.stop()
 
 else:
@@ -167,7 +182,7 @@ if st.sidebar.button("Logout"):
 
 # Check if data is available
 if df_prev_raw is None or df_curr_raw is None:
-    st.info("💡 Please upload both previous and current month Excel files or load the Google Sheets data from the sidebar.")
+    st.info("💡 Please upload both previous and current month files or load the Google Sheets data from the sidebar.")
     st.stop()
 
 # --- STEP 2: DATA CLEANING & VALIDATION ---
