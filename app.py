@@ -444,7 +444,7 @@ else:
 
 st.write("---")
 
-# --- STEP 5: ANALYST PORTFOLIO DISTRIBUTION ---
+# --- STEP 5: ANALYST PORTFOLIO DISTRIBUTION (RENOMBRADO PREV/CURR ACC OPEN AR) ---
 st.subheader("👥 Analyst Portfolio Distribution & Monthly Variation")
 
 df_prev_valid_analysts = df_prev_global[~df_prev_global["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)]
@@ -489,6 +489,7 @@ def calc_open_ar_pct(row):
 df_dist_merged["Open AR % Change"] = df_dist_merged.apply(calc_open_ar_pct, axis=1)
 df_dist_merged = df_dist_merged.sort_values(by="Open_AR_Curr_Active", ascending=False)
 
+# Renombrado de columnas con Acc
 df_dist_final = df_dist_merged[[
     "Credit Analyst", 
     "Total_Prev_All", 
@@ -502,8 +503,8 @@ df_dist_final = df_dist_merged[[
     "Credit Analyst": "Credit Analyst",
     "Total_Prev_All": "Prev Accounts (All)",
     "Total_Curr_All": "Curr Accounts (All)",
-    "Open_AR_Prev_Active": "Prev Open AR",
-    "Open_AR_Curr_Active": "Curr Open AR",
+    "Open_AR_Prev_Active": "Prev Acc Open AR",
+    "Open_AR_Curr_Active": "Curr Acc Open AR",
     "Open AR % Change": "Open AR % Change",
     "Sum_Past_Due": "Total Past Due",
     "Sum_Balance": "Total Balance"
@@ -513,8 +514,8 @@ st.dataframe(
     df_dist_final.style.format({
         "Prev Accounts (All)": "{:,.0f}",
         "Curr Accounts (All)": "{:,.0f}",
-        "Prev Open AR": "{:,.0f}",
-        "Curr Open AR": "{:,.0f}",
+        "Prev Acc Open AR": "{:,.0f}",
+        "Curr Acc Open AR": "{:,.0f}",
         "Total Past Due": "${:,.2f}",
         "Total Balance": "${:,.2f}"
     }),
@@ -523,10 +524,9 @@ st.dataframe(
 
 st.write("---")
 
-# --- EXECUTIVE SUMMARY & INSIGHTS (CÁLCULO EXACTO DE CUENTAS PERDIDAS) ---
+# --- EXECUTIVE SUMMARY & INSIGHTS ---
 st.subheader("📋 Executive Summary & Insights")
 
-# 1. Quien tiene más cuentas y líder en exposición
 if not df_dist_merged.empty:
     top_vol_row = df_dist_merged.loc[df_dist_merged["Open_AR_Curr_Active"].idxmax()]
     top_vol_analyst = top_vol_row["Credit Analyst"]
@@ -539,7 +539,7 @@ else:
     top_vol_analyst, top_vol_count = "N/A", 0
     top_exp_analyst, top_exp_balance = "N/A", 0
 
-# 2. CÁLCULO EXACTO: CUENTAS QUE SE LE QUITARON A CADA ANALISTA Y SU DINERO EN CURRENT MONTH
+# Cuentas retiradas a analistas válidos y su saldo en Current Month
 df_account_match = pd.merge(
     df_prev_global[["Customer", "Credit Analyst"]],
     df_curr_global[["Customer", "Credit Analyst", "Total Balance"]],
@@ -550,7 +550,6 @@ df_account_match = pd.merge(
 df_account_match["Credit Analyst_Prev"] = df_account_match["Credit Analyst_Prev"].fillna("").astype(str).str.strip()
 df_account_match["Credit Analyst_Curr"] = df_account_match["Credit Analyst_Curr"].fillna("").astype(str).str.strip()
 
-# Cuentas retiradas a analistas válidos
 df_lost_accounts = df_account_match[
     (~df_account_match["Credit Analyst_Prev"].str.upper().isin(invalid_states)) &
     (df_account_match["Credit Analyst_Prev"] != df_account_match["Credit Analyst_Curr"])
