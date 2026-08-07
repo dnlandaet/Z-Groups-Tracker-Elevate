@@ -190,13 +190,18 @@ if df_prev_raw is None or df_curr_raw is None:
 
 # --- STEP 2: ROBUST DATA CLEANING & VALIDATION ---
 
-def sanitize_columns(df):
-    """Strip spaces from column names"""
+def sanitize_and_normalize_columns(df):
+    """Strip spaces and assign Status column if located in Column G (7th column)"""
     df.columns = df.columns.astype(str).str.strip()
+    
+    # Check if Status column exists, if not check if Column G exists (index 6)
+    if "Status" not in df.columns and len(df.columns) >= 7:
+        df.rename(columns={df.columns[6]: "Status"}, inplace=True)
+        
     return df
 
-df_prev_raw = sanitize_columns(df_prev_raw)
-df_curr_raw = sanitize_columns(df_curr_raw)
+df_prev_raw = sanitize_and_normalize_columns(df_prev_raw)
+df_curr_raw = sanitize_and_normalize_columns(df_curr_raw)
 
 required_cols = ["Customer", "Customer Name", "Z-Group", "Credit Analyst", "Total Past Due", "Total Balance"]
 
@@ -236,26 +241,31 @@ def clean_data(df):
     df_clean["Total Balance"] = clean_currency_series(df_clean["Total Balance"])
     df_clean["Total Past Due"] = clean_currency_series(df_clean["Total Past Due"])
     
+    # Clean Status Column (Columna G)
     if "Status" in df_clean.columns:
         df_clean["Status"] = df_clean["Status"].fillna("Unspecified").astype(str).str.strip()
     else:
-        df_clean["Status"] = "N/A"
+        df_clean["Status"] = "Unspecified"
         
     return df_clean
 
-# Base global limpia SIN filtrar por Status
+# Base global limpia SIN filtrar
 df_prev_global = clean_data(df_prev_raw)
 df_curr_global = clean_data(df_curr_raw)
 
-# --- STEP 3: GENERAL PORTFOLIO SUMMARY (INDEPENDIENTE DEL FILTRO DE STATUS) ---
-prev_active_count_global = len(df_prev_global)
-curr_active_count_global = len(df_curr_global)
+# --- STEP 3: GENERAL PORTFOLIO SUMMARY (BASADO ESTRICTAMENTE EN STATUS == 'ACTIVE' DE LA COLUMNA G) ---
+# Filtrar estrictamente cuentas cuyo Status sea 'ACTIVE'
+prev_active_accounts = df_prev_global[df_prev_global["Status"].str.upper() == "ACTIVE"]
+curr_active_accounts = df_curr_global[df_curr_global["Status"].str.upper() == "ACTIVE"]
 
-if prev_active_count_global > 0:
-    variation_global = ((curr_active_count_global - prev_active_count_global) / prev_active_count_global) * 100
-    variation_str_global = f"{variation_global:+.2f}%"
+prev_active_count = len(prev_active_accounts)
+curr_active_count = len(curr_active_accounts)
+
+if prev_active_count > 0:
+    variation_active = ((curr_active_count - prev_active_count) / prev_active_count) * 100
+    variation_str_active = f"{variation_active:+.2f}%"
 else:
-    variation_str_global = "N/A"
+    variation_str_active = "N/A"
 
 st.subheader("📌 General Portfolio Summary")
 col1, col2, col3 = st.columns(3)
@@ -263,31 +273,32 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.metric(
         label="Active Accounts (Previous Month)", 
-        value=f"{prev_active_count_global:,}"
+        value=f"{prev_active_count:,}"
     )
 with col2:
     st.metric(
         label="Active Accounts (Current Month)", 
-        value=f"{curr_active_count_global:,}", 
-        delta=variation_str_global
+        value=f"{curr_active_count:,}", 
+        delta=variation_str_active
     )
 with col3:
-    total_balance_curr_global = df_curr_global[df_curr_global["Total Balance"] != 0]["Total Balance"].sum()
+    # Total de balance abierto de las cuentas activas
+    total_balance_active_curr = curr_active_accounts[curr_active_accounts["Total Balance"] != 0]["Total Balance"].sum()
     st.metric(
         label="Total Active Balance (Current Month)", 
-        value=f"${total_balance_curr_global:,.2f}"
+        value=f"${total_balance_active_curr:,.2f}"
     )
 
 st.write("---")
 
-# --- SIDEBAR FILTER: STATUS (SOLO APLICA PARA LAS SECCIONES DE ABAJO) ---
+# --- SIDEBAR FILTER: STATUS (APLICA A LAS TABLAS DE DETALLE INFERIORES) ---
 df_prev_clean = df_prev_global.copy()
 df_curr_clean = df_curr_global.copy()
 
 available_statuses = sorted(list(set(df_prev_clean["Status"].unique()).union(set(df_curr_clean["Status"].unique()))))
-if available_statuses and available_statuses != ["N/A"]:
+if available_statuses and available_statuses != ["Unspecified"]:
     selected_statuses = st.sidebar.multiselect(
-        "Filter by Status (Active / Inactive)",
+        "Filter Tables by Status (Column G)",
         options=available_statuses,
         default=available_statuses
     )
@@ -303,7 +314,6 @@ df_curr_open = df_curr_clean[df_curr_clean["Total Balance"] != 0]
 st.subheader("🔄 Credit Analyst Assignment Transitions")
 st.markdown("These are the accounts that transitioned strictly **from one specific credit analyst to another** (excluding unassigned states or None).")
 
-# Merge dataframes on Customer ID
 df_comparison = pd.merge(
     df_prev_clean[["Customer", "Credit Analyst", "Total Past Due", "Total Balance"]],
     df_curr_clean[["Customer", "Customer Name", "Credit Analyst", "Total Past Due", "Total Balance"]],
@@ -311,14 +321,11 @@ df_comparison = pd.merge(
     suffixes=("_Previous", "_Current")
 )
 
-# Convert analyst columns to clean uppercase string
 df_comparison["Credit Analyst_Previous"] = df_comparison["Credit Analyst_Previous"].fillna("").astype(str).str.strip()
 df_comparison["Credit Analyst_Current"] = df_comparison["Credit Analyst_Current"].fillna("").astype(str).str.strip()
 
-# Lista de estados inválidos para descartar unassigned/None estrictamente
 invalid_states = ["NOT FOUND", "NO CREDIT ANALYST ASSIGNED.", "NAN", "", "NONE", "UNASSIGNED", "NONE.", "NULL"]
 
-# Filtro ESTRICTO: Ambos analistas deben ser personas reales y diferentes
 df_analyst_changes = df_comparison[
     (df_comparison["Credit Analyst_Previous"] != df_comparison["Credit Analyst_Current"]) &
     (~df_comparison["Credit Analyst_Previous"].str.upper().isin(invalid_states)) &
@@ -518,7 +525,7 @@ else:
     top_acc_analyst, top_acc_count = "N/A", 0
     top_exp_analyst, top_exp_balance = "N/A", 0
 
-unassigned_ratio = (unassigned_balance_sum / total_balance_curr_global * 100) if total_balance_curr_global > 0 else 0
+unassigned_ratio = (unassigned_balance_sum / total_balance_active_curr * 100) if total_balance_active_curr > 0 else 0
 
 col_summary, col_notes = st.columns([2, 1])
 
