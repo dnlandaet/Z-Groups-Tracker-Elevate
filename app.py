@@ -194,7 +194,6 @@ def sanitize_and_normalize_columns(df):
     """Strip spaces and assign Status column if located in Column G (7th column)"""
     df.columns = df.columns.astype(str).str.strip()
     
-    # Check if Status column exists, if not check if Column G exists (index 6)
     if "Status" not in df.columns and len(df.columns) >= 7:
         df.rename(columns={df.columns[6]: "Status"}, inplace=True)
         
@@ -224,12 +223,10 @@ def clean_currency_series(series):
 def clean_data(df):
     df_clean = df.copy()
     
-    # Remove records containing "NOT FOUND" in Total Balance
     df_clean = df_clean[
         df_clean["Total Balance"].astype(str).str.strip().str.upper() != "NOT FOUND"
     ]
     
-    # Convert Customer column safely to string ID
     df_clean["Customer"] = (
         pd.to_numeric(df_clean["Customer"].astype(str).str.replace(r'\.0$', '', regex=True), errors='coerce')
         .fillna(0)
@@ -237,11 +234,9 @@ def clean_data(df):
         .astype(str)
     )
     
-    # Clean financial numeric columns safely
     df_clean["Total Balance"] = clean_currency_series(df_clean["Total Balance"])
     df_clean["Total Past Due"] = clean_currency_series(df_clean["Total Past Due"])
     
-    # Clean Status Column (Columna G)
     if "Status" in df_clean.columns:
         df_clean["Status"] = df_clean["Status"].fillna("Unspecified").astype(str).str.strip()
     else:
@@ -249,12 +244,11 @@ def clean_data(df):
         
     return df_clean
 
-# Base global limpia SIN filtrar
+# Base global limpia
 df_prev_global = clean_data(df_prev_raw)
 df_curr_global = clean_data(df_curr_raw)
 
 # --- STEP 3: GENERAL PORTFOLIO SUMMARY (BASADO ESTRICTAMENTE EN STATUS == 'ACTIVE' DE LA COLUMNA G) ---
-# Filtrar estrictamente cuentas cuyo Status sea 'ACTIVE'
 prev_active_accounts = df_prev_global[df_prev_global["Status"].str.upper() == "ACTIVE"]
 curr_active_accounts = df_curr_global[df_curr_global["Status"].str.upper() == "ACTIVE"]
 
@@ -282,7 +276,6 @@ with col2:
         delta=variation_str_active
     )
 with col3:
-    # Total de balance abierto de las cuentas activas
     total_balance_active_curr = curr_active_accounts[curr_active_accounts["Total Balance"] != 0]["Total Balance"].sum()
     st.metric(
         label="Total Active Balance (Current Month)", 
@@ -443,21 +436,30 @@ else:
 
 st.write("---")
 
-# --- STEP 5: ANALYST PORTFOLIO DISTRIBUTION ---
+# --- STEP 5: ANALYST PORTFOLIO DISTRIBUTION (ESTRICTAMENTE FILTRADO A CUENTAS 'ACTIVE' DE LA COLUMNA G) ---
 st.subheader("👥 Analyst Portfolio Distribution & Monthly Variation")
 st.markdown("Detailed comparison of active accounts with open AR, past due balances, and total credit exposure per analyst compared to the previous month.")
 
-df_prev_assigned = df_prev_clean[~df_prev_clean["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)]
-df_curr_assigned = df_curr_clean[~df_curr_clean["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)]
+# Filtrar explícitamente bases a cuentas 'ACTIVE' para el conteo de portafolio asignado
+df_prev_assigned_active = df_prev_global[
+    (~df_prev_global["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)) &
+    (df_prev_global["Status"].str.upper() == "ACTIVE")
+]
 
-prev_total_assigned = df_prev_assigned.groupby("Credit Analyst").agg(Total_Assigned_Prev=("Customer", "count")).reset_index()
-curr_total_assigned = df_curr_assigned.groupby("Credit Analyst").agg(Total_Assigned_Curr=("Customer", "count")).reset_index()
+df_curr_assigned_active = df_curr_global[
+    (~df_curr_global["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)) &
+    (df_curr_global["Status"].str.upper() == "ACTIVE")
+]
 
-df_prev_open_assigned = df_prev_open[~df_prev_open["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)]
-df_curr_open_assigned = df_curr_open[~df_curr_open["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)]
+prev_total_assigned = df_prev_assigned_active.groupby("Credit Analyst").agg(Total_Assigned_Prev=("Customer", "count")).reset_index()
+curr_total_assigned = df_curr_assigned_active.groupby("Credit Analyst").agg(Total_Assigned_Curr=("Customer", "count")).reset_index()
 
-prev_open_dist = df_prev_open_assigned.groupby("Credit Analyst").agg(Open_AR_Prev=("Customer", "count")).reset_index()
-curr_open_dist = df_curr_open_assigned.groupby("Credit Analyst").agg(
+# Open AR Accounts (Active + Balance != 0)
+df_prev_open_assigned_active = df_prev_assigned_active[df_prev_assigned_active["Total Balance"] != 0]
+df_curr_open_assigned_active = df_curr_assigned_active[df_curr_assigned_active["Total Balance"] != 0]
+
+prev_open_dist = df_prev_open_assigned_active.groupby("Credit Analyst").agg(Open_AR_Prev=("Customer", "count")).reset_index()
+curr_open_dist = df_curr_open_assigned_active.groupby("Credit Analyst").agg(
     Open_AR_Curr=("Customer", "count"),
     Sum_Past_Due=("Total Past Due", "sum"),
     Sum_Balance=("Total Balance", "sum")
