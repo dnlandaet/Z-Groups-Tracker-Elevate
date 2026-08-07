@@ -11,7 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. Modern Light UI - Colores Ajustados & Cuadros de Mismas Dimensiones
+# 2. Modern Light UI - TODAS LAS ALERTAS FORZADAS EN AZUL CORPORATIVO SUAVE
 st.markdown("""
     <style>
     /* Global App Light Background */
@@ -39,12 +39,12 @@ st.markdown("""
         color: #ffffff !important;
     }
     
-    /* METRIC CARDS - MISMAS DIMENSIONES EXACTAS (HEIGHT 140px) & AZUL CLARITO (#f0f5ff) */
+    /* METRIC CARDS - UN SOLO BLOQUE AZUL CLARITO (#f0f5ff) CON ALTURA FIJA (140px) */
     div[data-testid="stMetric"] {
         background-color: #f0f5ff !important;
         border: 1px solid #dbeafe !important;
         border-left: 6px solid #2563eb !important;
-        padding: 18px 20px !important;
+        padding: 20px !important;
         border-radius: 12px !important;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
         height: 140px !important;
@@ -71,7 +71,7 @@ st.markdown("""
     div[data-testid="stMetricValue"] {
         color: #001fbe !important;
         font-weight: 800 !important;
-        font-size: 28px !important;
+        font-size: 30px !important;
         word-break: break-all;
     }
 
@@ -92,17 +92,19 @@ st.markdown("""
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
 
-    /* CORREGIDO: ALERTAS / INFO BOXES CON AZUL SUAVE Y LIMPIO (#e0f2fe) */
-    .stAlert {
+    /* FORZAR TODAS LAS ALERTAS (INFO, WARNING, SUCCESS) A AZUL SUAVE Y AZUL OSCURO EN TEXTO */
+    .stAlert, 
+    div[data-testid="stAlert"] {
         background-color: #e0f2fe !important;
         border: 1px solid #7dd3fc !important;
-        border-left: 5px solid #0284c7 !important;
+        border-left: 6px solid #0284c7 !important;
         color: #0369a1 !important;
         border-radius: 10px !important;
     }
-    .stAlert p, .stAlert span, .stAlert div {
+    .stAlert p, .stAlert span, .stAlert div, 
+    div[data-testid="stAlert"] p, div[data-testid="stAlert"] span, div[data-testid="stAlert"] div {
         color: #0369a1 !important;
-        font-weight: 500 !important;
+        font-weight: 600 !important;
     }
     
     /* Horizontal Dividers */
@@ -450,7 +452,7 @@ if not df_analyst_changes.empty:
         f"representing **${transferred_balance:,.2f}** in Total Balance and **${transferred_past_due:,.2f}** in Total Past Due."
     )
 else:
-    st.success(f"✅ No credit analyst assignment transitions were detected between valid analysts for {report_period_str}.")
+    st.info(f"✅ No credit analyst assignment transitions were detected between valid analysts for {report_period_str}.")
 
 st.write("---")
 
@@ -484,7 +486,7 @@ if not df_new_accounts.empty:
         f"New Accounts Impact: Identified {new_accounts_count} new open AR accounts in {report_period_str} with a combined balance of ${new_accounts_balance:,.2f}."
     )
 else:
-    st.success(f"No new open AR accounts were identified for {report_period_str}.")
+    st.info(f"No new open AR accounts were identified for {report_period_str}.")
 
 st.write("---")
 
@@ -526,12 +528,12 @@ if not df_unassigned.empty:
     )
 
     unassigned_balance_sum = df_unassigned["Total Balance"].sum()
-    st.warning(
+    st.info(
         f"Total Exposure Unassigned: There are {unassigned_count} accounts in {report_period_str} with open balance missing BOTH Z-Group and Credit Analyst, "
         f"representing a total of ${unassigned_balance_sum:,.2f}."
     )
 else:
-    st.success(f"Great! No active open-balance accounts were found with both Z-Group and Credit Analyst empty in {report_period_str}.")
+    st.info(f"Great! No active open-balance accounts were found with both Z-Group and Credit Analyst empty in {report_period_str}.")
 
 st.write("---")
 
@@ -683,9 +685,9 @@ with col_summary:
 
 with col_notes:
     if unassigned_count > 0:
-        st.warning(
+        st.info(
             f"⚠️ **Action Required:** We recommend reviewing and assigning analyst ownership to the **{unassigned_count} unassigned accounts** "
             f"as soon as possible to mitigate financial exposure of **${unassigned_balance_sum:,.2f}** for **{report_period_str}**."
         )
     else:
-        st.success(f"✅ **Outstanding:** All active open-balance accounts have assigned analysts in {report_period_str}. Zero unattended balance detected.")
+        st.info(f"✅ **Outstanding:** All active open-balance accounts have assigned analysts in {report_period_str}. Zero unattended balance detected.")
