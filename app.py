@@ -11,7 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. Modern Light UI - Fondo Azul Clarito Exacto (#f0f5ff) Forzado en las Tarjetas
+# 2. Modern Light UI - Fondo Claro, Tarjetas Azul Clarito y Alertas en Amarillo Suave (#fffbe6)
 st.markdown("""
     <style>
     /* Global App Light Background */
@@ -39,19 +39,25 @@ st.markdown("""
         color: #ffffff !important;
     }
     
-    /* METRIC CARDS - FONDO AZUL CLARITO EXACTO (#f0f5ff) FORZADO */
-    div[data-testid="stMetric"], 
-    div[data-testid="stMetric"] > div {
+    /* METRIC CARDS - UN SOLO BLOQUE AZUL CLARITO (#f0f5ff) */
+    div[data-testid="stMetric"] {
         background-color: #f0f5ff !important;
         border: 1px solid #dbeafe !important;
         border-left: 6px solid #2563eb !important;
-        padding: 18px 20px !important;
+        padding: 20px !important;
         border-radius: 12px !important;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
-        min-height: 135px;
+        min-height: 130px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+    }
+
+    div[data-testid="stMetric"] > div {
+        background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
     }
     
     div[data-testid="stMetric"]:hover {
@@ -62,7 +68,7 @@ st.markdown("""
     div[data-testid="stMetricValue"] {
         color: #001fbe !important;
         font-weight: 800 !important;
-        font-size: 32px !important;
+        font-size: 30px !important;
         word-break: break-all;
     }
 
@@ -83,13 +89,16 @@ st.markdown("""
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
 
-    /* Info & Alert Styling Override */
+    /* RESTAURADO: INFO & ALERT STYLING (AMARILLO SUAVE Y CÁLIDO) */
     .stAlert {
-        background-color: #f0fdf4 !important;
-        border: 1px solid #bbf7d0 !important;
-        border-left: 5px solid #16a34a !important;
-        color: #166534 !important;
-        border-radius: 10px;
+        background-color: #fffbe6 !important;
+        border: 1px solid #ffe58f !important;
+        border-left: 5px solid #faad14 !important;
+        color: #873800 !important;
+        border-radius: 10px !important;
+    }
+    .stAlert p, .stAlert span, .stAlert div {
+        color: #873800 !important;
     }
     
     /* Horizontal Dividers */
