@@ -397,13 +397,22 @@ else:
 
 st.write("---")
 
-# --- UNASSIGNED ACCOUNTS SECTION ---
+# --- UNASSIGNED ACCOUNTS SECTION (AMBOS VACÍOS: Z-GROUP Y CREDIT ANALYST EN CURRENT) ---
 st.subheader("⚠️ Unassigned Accounts")
-st.markdown("These are current month accounts with an open balance that do not have an active Credit Analyst assigned (contains 'No Credit Analyst Assigned.', 'Not Found', or blank fields).")
+st.markdown("These are current month accounts with an open balance where **BOTH Z-Group and Credit Analyst are empty or unassigned**.")
 
+invalid_zgroups = ["NONE", "NAN", "", "NULL", "NOT FOUND", "NONE."]
+
+# Filtro estricto: AMBOS CAMPOS (Z-Group Y Credit Analyst) son inválidos o vacíos a la vez
 df_unassigned = df_curr_open[
-    (df_curr_open["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)) |
-    (df_curr_open["Credit Analyst"].isna())
+    (
+        (df_curr_open["Z-Group"].astype(str).str.strip().str.upper().isin(invalid_zgroups)) |
+        (df_curr_open["Z-Group"].isna())
+    ) &
+    (
+        (df_curr_open["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)) |
+        (df_curr_open["Credit Analyst"].isna())
+    )
 ]
 
 unassigned_balance_sum = 0
@@ -411,7 +420,7 @@ unassigned_count = len(df_unassigned)
 
 if not df_unassigned.empty:
     df_unassigned_formatted = df_unassigned[[
-        "Customer", "Customer Name", "Z-Group", "Credit Analyst", "Total Past Due", "Total Balance"
+        "Customer", "Customer Name", "Status", "Z-Group", "Credit Analyst", "Total Past Due", "Total Balance"
     ]].rename(columns={
         "Credit Analyst": "Assigned Status",
         "Total Past Due": "Total Past Due",
@@ -428,15 +437,15 @@ if not df_unassigned.empty:
 
     unassigned_balance_sum = df_unassigned["Total Balance"].sum()
     st.warning(
-        f"Total Exposure Unassigned: There are {unassigned_count} accounts with open balance currently without an analyst, "
+        f"Total Exposure Unassigned: There are {unassigned_count} accounts with open balance currently missing BOTH Z-Group and Credit Analyst, "
         f"representing a total of ${unassigned_balance_sum:,.2f}."
     )
 else:
-    st.success("Great! Every active open-balance account has an analyst assigned for the current month.")
+    st.success("Great! No active open-balance accounts were found with both Z-Group and Credit Analyst empty for the selected status filter.")
 
 st.write("---")
 
-# --- STEP 5: ANALYST PORTFOLIO DISTRIBUTION (REGLAS DE MUESTRA EXACTAS REQUERIDAS) ---
+# --- STEP 5: ANALYST PORTFOLIO DISTRIBUTION ---
 st.subheader("👥 Analyst Portfolio Distribution & Monthly Variation")
 st.markdown("Detailed breakdown of analyst portfolios including overall accounts (Active + Inactive) and open AR active exposure.")
 
@@ -484,7 +493,6 @@ def calc_open_ar_pct(row):
 df_dist_merged["Open AR % Change"] = df_dist_merged.apply(calc_open_ar_pct, axis=1)
 df_dist_merged = df_dist_merged.sort_values(by="Open_AR_Curr_Active", ascending=False)
 
-# Reordenar y formatear con encabezados ejecutivos claros
 df_dist_final = df_dist_merged[[
     "Credit Analyst", 
     "Total_Prev_All", 
@@ -498,8 +506,8 @@ df_dist_final = df_dist_merged[[
     "Credit Analyst": "Credit Analyst",
     "Total_Prev_All": "Prev Accounts (All)",
     "Total_Curr_All": "Curr Accounts (All)",
-    "Open_AR_Prev_Active": "Prev Open AR (Active)",
-    "Open_AR_Curr_Active": "Curr Open AR (Active)",
+    "Open_AR_Prev_Active": "Prev Open AR",
+    "Open_AR_Curr_Active": "Curr Open AR",
     "Open AR % Change": "Open AR % Change",
     "Sum_Past_Due": "Total Past Due",
     "Sum_Balance": "Total Balance"
@@ -509,8 +517,8 @@ st.dataframe(
     df_dist_final.style.format({
         "Prev Accounts (All)": "{:,.0f}",
         "Curr Accounts (All)": "{:,.0f}",
-        "Prev Open AR (Active)": "{:,.0f}",
-        "Curr Open AR (Active)": "{:,.0f}",
+        "Prev Open AR": "{:,.0f}",
+        "Curr Open AR": "{:,.0f}",
         "Total Past Due": "${:,.2f}",
         "Total Balance": "${:,.2f}"
     }),
