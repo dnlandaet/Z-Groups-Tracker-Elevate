@@ -11,42 +11,42 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. Modern UI / Dark-Sleek CSS Design (Inspirado en Dashboards UI/UX Top)
+# 2. Modern Light UI / Corporate Amrize Design
 st.markdown("""
     <style>
-    /* Global App Background */
+    /* Global App Light Background */
     .stApp {
-        background-color: #0b1120;
-        color: #e2e8f0;
-        font-family: 'Inter', 'Helvetica Neue', sans-serif;
+        background-color: #f8fafc;
+        color: #1e293b;
+        font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
     }
     
     /* Headers & Typography */
     h1, h2, h3, h4, h5, h6 {
-        color: #ffffff !important;
+        color: #011e6a !important;
         font-weight: 700 !important;
         letter-spacing: -0.5px;
     }
     
-    /* Sidebar Modern Styling */
+    /* Sidebar Styling (Deep Amrize Blue) */
     [data-testid="stSidebar"] {
-        background-color: #0f172a;
-        border-right: 1px solid #1e293b;
+        background-color: #011e6a;
+        border-right: 1px solid #e2e8f0;
     }
     [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, 
     [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, 
     [data-testid="stSidebar"] span, [data-testid="stSidebar"] label {
-        color: #94a3b8 !important;
+        color: #ffffff !important;
     }
     
-    /* Metric Card Modern UI Fix (Sleek Glassmorphism effect) */
+    /* Metric Cards Modern Light UI */
     div[data-testid="stMetric"] {
-        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-        border: 1px solid #334155;
-        border-left: 5px solid #2563eb !important;
-        padding: 20px;
-        border-radius: 14px;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-left: 5px solid #0284c7 !important;
+        padding: 18px 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
         min-height: 135px;
         display: flex;
         flex-direction: column;
@@ -55,73 +55,74 @@ st.markdown("""
     }
     div[data-testid="stMetric"]:hover {
         transform: translateY(-2px);
-        box-shadow: 0 14px 20px -3px rgba(37, 99, 235, 0.2);
-        border-color: #3b82f6;
+        box-shadow: 0 10px 15px -3px rgba(1, 30, 106, 0.1);
+        border-color: #cbd5e1;
     }
     div[data-testid="stMetricValue"] {
-        color: #38bdf8 !important;
+        color: #011e6a !important;
         font-weight: 800;
         font-size: 30px !important;
         word-break: break-all;
     }
     div[data-testid="stMetricLabel"] {
-        color: #94a3b8 !important;
+        color: #64748b !important;
         font-size: 13px;
         text-transform: uppercase;
-        letter-spacing: 0.8px;
+        letter-spacing: 0.5px;
         font-weight: 600;
     }
     
     /* Table & Dataframe Modern Styling */
     div[data-testid="stDataFrame"] {
-        background-color: #1e293b;
+        background-color: #ffffff;
         border-radius: 12px;
-        padding: 10px;
-        border: 1px solid #334155;
+        padding: 8px;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
 
     /* Info & Alert Styling Override */
     .stAlert {
-        background-color: #1e293b !important;
-        border: 1px solid #38bdf8 !important;
-        border-left: 5px solid #38bdf8 !important;
-        color: #e2e8f0 !important;
-        border-radius: 12px;
+        background-color: #f0fdf4 !important;
+        border: 1px solid #bbf7d0 !important;
+        border-left: 5px solid #16a34a !important;
+        color: #166534 !important;
+        border-radius: 10px;
     }
     
     /* Horizontal Dividers */
     hr {
-        border-top: 1px solid #1e293b;
+        border-top: 1.5px solid #e2e8f0;
         margin: 2rem 0;
     }
 
     /* Period Badge Styling */
     .period-badge {
-        background: linear-gradient(90deg, #1e3a8a 0%, #0284c7 100%);
-        color: #ffffff;
-        padding: 10px 20px;
-        border-radius: 30px;
+        background: #f0f5ff;
+        color: #011e6a;
+        padding: 8px 18px;
+        border-radius: 20px;
         font-weight: 600;
         font-size: 14px;
         display: inline-block;
-        box-shadow: 0 4px 10px rgba(2, 132, 199, 0.3);
-        margin-bottom: 20px;
-        letter-spacing: 0.5px;
+        border: 1px solid #93c5fd;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 4px rgba(1, 30, 106, 0.05);
     }
 
     /* Custom Buttons Styling */
     .stButton>button {
-        background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+        background-color: #0284c7;
         color: white;
-        border-radius: 10px;
+        border-radius: 8px;
         border: none;
-        padding: 10px 20px;
+        padding: 8px 18px;
         font-weight: 600;
-        transition: all 0.3s ease;
+        transition: all 0.2s ease;
     }
     .stButton>button:hover {
-        background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        background-color: #0369a1;
+        box-shadow: 0 4px 10px rgba(2, 132, 199, 0.25);
     }
     </style>
 """, unsafe_allow_html=True)
@@ -193,8 +194,8 @@ selected_year = st.sidebar.selectbox("Report Year", options=years_list, index=ye
 
 report_period_str = f"{selected_month} {selected_year}"
 
-# Badge de Periodo Estilizado
-st.markdown(f'<div class="period-badge">⚡ ACTIVE REPORT PERIOD: <strong>{report_period_str.upper()}</strong></div>', unsafe_allow_html=True)
+# Badge de Periodo Estilizado en Fondo Claro
+st.markdown(f'<div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>', unsafe_allow_html=True)
 st.markdown("Upload your comparative monthly files (Excel or CSV) or connect to Google Sheets to track analyst changes and overall portfolio movement.")
 
 # --- HELPER FUNCTION: UNIVERSAL FILE READER ---
