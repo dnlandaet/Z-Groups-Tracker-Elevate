@@ -11,7 +11,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. Modern Light UI / Corporate Amrize Design
+# 2. Modern Light UI - Fondo Azul Clarito Exacto (#f0f5ff) Forzado en las Tarjetas
 st.markdown("""
     <style>
     /* Global App Light Background */
@@ -39,37 +39,39 @@ st.markdown("""
         color: #ffffff !important;
     }
     
-    /* Metric Cards Modern Light UI */
-    div[data-testid="stMetric"] {
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-left: 5px solid #0284c7 !important;
-        padding: 18px 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    /* METRIC CARDS - FONDO AZUL CLARITO EXACTO (#f0f5ff) FORZADO */
+    div[data-testid="stMetric"], 
+    div[data-testid="stMetric"] > div {
+        background-color: #f0f5ff !important;
+        border: 1px solid #dbeafe !important;
+        border-left: 6px solid #2563eb !important;
+        padding: 18px 20px !important;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
         min-height: 135px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
+    
     div[data-testid="stMetric"]:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(1, 30, 106, 0.1);
-        border-color: #cbd5e1;
+        box-shadow: 0 10px 15px -3px rgba(1, 30, 106, 0.12) !important;
+        border-color: #93c5fd !important;
     }
+
     div[data-testid="stMetricValue"] {
-        color: #011e6a !important;
-        font-weight: 800;
-        font-size: 30px !important;
+        color: #001fbe !important;
+        font-weight: 800 !important;
+        font-size: 32px !important;
         word-break: break-all;
     }
+
     div[data-testid="stMetricLabel"] {
-        color: #64748b !important;
-        font-size: 13px;
+        color: #334155 !important;
+        font-size: 13px !important;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        font-weight: 600;
+        font-weight: 600 !important;
     }
     
     /* Table & Dataframe Modern Styling */
@@ -194,7 +196,7 @@ selected_year = st.sidebar.selectbox("Report Year", options=years_list, index=ye
 
 report_period_str = f"{selected_month} {selected_year}"
 
-# Badge de Periodo Estilizado en Fondo Claro
+# Badge de Periodo Estilizado
 st.markdown(f'<div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>', unsafe_allow_html=True)
 st.markdown("Upload your comparative monthly files (Excel or CSV) or connect to Google Sheets to track analyst changes and overall portfolio movement.")
 
