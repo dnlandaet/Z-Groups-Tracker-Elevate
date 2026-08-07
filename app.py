@@ -10,7 +10,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. Custom CSS to inject Brand Colors (Amrize Palette)
+# 2. Custom CSS to inject Brand Colors & Equal Metric Heights
 st.markdown("""
     <style>
     /* Headers & Title Colors */
@@ -29,13 +29,17 @@ st.markdown("""
         color: #ffffff !important;
     }
     
-    /* Metric Card Styling */
+    /* Metric Card Styling & EQUAL HEIGHT FIX */
     div[data-testid="stMetric"] {
         background-color: #f0f5ff;
         border-left: 5px solid #2a6eff;
         padding: 15px;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        min-height: 130px; /* Forzar misma altura en los 3 cuadros */
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
     div[data-testid="stMetricValue"] {
         color: #0404bd !important;
@@ -257,27 +261,28 @@ df_prev_open = df_prev_clean[df_prev_clean["Total Balance"] != 0]
 df_curr_open = df_curr_clean[df_curr_clean["Total Balance"] != 0]
 
 # --- STEP 3: GENERAL PORTFOLIO SUMMARY ---
-prev_count = len(df_prev_open)
-curr_count = len(df_curr_open)
+# Cuentas activas totales (sin filtrar por saldo)
+prev_active_count = len(df_prev_clean)
+curr_active_count = len(df_curr_clean)
 
-if prev_count > 0:
-    variation = ((curr_count - prev_count) / prev_count) * 100
+if prev_active_count > 0:
+    variation = ((curr_active_count - prev_active_count) / prev_active_count) * 100
     variation_str = f"{variation:+.2f}%"
 else:
-    variation_str = "N/A (No previous month accounts)"
+    variation_str = "N/A"
 
 st.subheader("📌 General Portfolio Summary")
 col1, col2, col3 = st.columns(3)
 
 with col1:
     st.metric(
-        label="Open Balance Accounts (Previous Month)", 
-        value=f"{prev_count:,}"
+        label="Active Accounts (Previous Month)", 
+        value=f"{prev_active_count:,}"
     )
 with col2:
     st.metric(
-        label="Open Balance Accounts (Current Month)", 
-        value=f"{curr_count:,}", 
+        label="Active Accounts (Current Month)", 
+        value=f"{curr_active_count:,}", 
         delta=variation_str
     )
 with col3:
