@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import re
+import base64
 from datetime import datetime
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
@@ -725,10 +726,25 @@ with col_notes:
         st.info(f"✅ **Outstanding:** All active open-balance accounts have assigned analysts in {report_period_str}. Zero unattended balance detected.")
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# STEP 6: FULL INTERACTIVE HTML EXPORT GENERATOR
+# STEP 6: FULL INTERACTIVE HTML EXPORT GENERATOR (CON LOGO BASE64)
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.write("---")
 st.subheader("📦 Export Options")
+
+def get_logo_base64(logo_path):
+    if logo_path and os.path.exists(logo_path):
+        with open(logo_path, "rb") as image_file:
+            encoded = base64.b64encode(image_file.read()).decode()
+            mime = "image/svg+xml" if logo_path.endswith(".svg") else "image/png"
+            return f"data:{mime};base64,{encoded}"
+    return None
+
+logo_b64 = get_logo_base64(logo_file)
+
+if logo_b64:
+    logo_html_tag = f'<img src="{logo_b64}" alt="AMRIZE Logo" style="height: 48px; margin-bottom: 12px;">'
+else:
+    logo_html_tag = '<div style="font-size: 28px; font-weight: 800; color: #011e6a; margin-bottom: 10px;">▲ AMRIZE</div>'
 
 def get_formatted_html_table(df, format_dict):
     if df.empty:
@@ -819,6 +835,7 @@ html_interactive_export = f"""<!DOCTYPE html>
 </head>
 <body>
     <div class="header">
+        {logo_html_tag}
         <div class="title">Z-Groups Tracker Elevate</div>
         <div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>
     </div>
