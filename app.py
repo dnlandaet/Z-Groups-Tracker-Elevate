@@ -213,7 +213,6 @@ report_period_str = f"{selected_month} {selected_year}"
 
 # Badge de Periodo Estilizado
 st.markdown(f'<div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>', unsafe_allow_html=True)
-# st.markdown("Upload your comparative monthly files (Excel or CSV) or connect to Google Sheets to track analyst changes and overall portfolio movement.")
 
 # --- HELPER FUNCTION: UNIVERSAL FILE READER ---
 def load_data_file(uploaded_file):
@@ -691,3 +690,97 @@ with col_notes:
         )
     else:
         st.info(f"✅ **Outstanding:** All active open-balance accounts have assigned analysts in {report_period_str}. Zero unattended balance detected.")
+
+# --- STEP 6: EXPORT INTERACTIVE HTML REPORT BUTTON ---
+st.write("---")
+st.subheader("📦 Export Options")
+
+# Generate HTML Table string from current DataFrames dynamically
+dist_table_html = df_dist_final.to_html(classes='styled-table', index=False)
+
+html_interactive_export = f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Amrize - Z-Groups Tracker Elevate ({report_period_str})</title>
+    <style>
+        body {{
+            font-family: 'Inter', Arial, sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            margin: 0;
+            padding: 30px;
+        }}
+        .header {{ margin-bottom: 24px; }}
+        .title {{ font-size: 26px; font-weight: 800; color: #011e6a; margin-bottom: 5px; }}
+        .period-badge {{
+            display: inline-block; background: #f0f5ff; color: #011e6a;
+            padding: 6px 14px; border-radius: 20px; font-weight: 600; font-size: 13px;
+            border: 1px solid #93c5fd; margin-bottom: 20px;
+        }}
+        .kpi-container {{ display: flex; gap: 15px; margin-bottom: 25px; }}
+        .kpi-card {{
+            flex: 1; background: #f0f5ff; border: 1px solid #dbeafe;
+            border-left: 6px solid #2563eb; padding: 15px; border-radius: 12px;
+        }}
+        .kpi-title {{ font-size: 12px; color: #334155; font-weight: 600; text-transform: uppercase; }}
+        .kpi-value {{ font-size: 26px; font-weight: 800; color: #001fbe; margin-top: 5px; }}
+        .styled-table {{
+            width: 100%; border-collapse: collapse; margin-top: 15px; background: white;
+            border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0;
+        }}
+        .styled-table th, .styled-table td {{ padding: 10px 14px; text-align: left; font-size: 13px; }}
+        .styled-table th {{ background-color: #011e6a; color: white; }}
+        .styled-table tr:nth-child(even) {{ background-color: #f8fafc; }}
+        input[type="text"] {{
+            width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 12px; box-sizing: border-box;
+        }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">Z-Groups Tracker Elevate</div>
+        <div class="period-badge">📅 Active Report Period: {report_period_str}</div>
+    </div>
+
+    <div class="kpi-container">
+        <div class="kpi-card">
+            <div class="kpi-title">Active Accounts (Previous Month)</div>
+            <div class="kpi-value">{prev_active_count:,}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Active Accounts ({report_period_str})</div>
+            <div class="kpi-value">{curr_active_count:,}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Total Active Balance ({report_period_str})</div>
+            <div class="kpi-value">${total_balance_active_curr:,.2f}</div>
+        </div>
+    </div>
+
+    <h2>👥 Analyst Portfolio Distribution</h2>
+    <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="🔍 Filter table by Analyst or values...">
+    
+    <div id="tableContainer">
+        {dist_table_html}
+    </div>
+
+    <script>
+        function filterTable() {{
+            var input = document.getElementById("searchInput").value.toUpperCase();
+            var rows = document.querySelectorAll(".styled-table tr");
+            for (var i = 1; i < rows.length; i++) {{
+                var text = rows[i].innerText.toUpperCase();
+                rows[i].style.display = text.indexOf(input) > -1 ? "" : "none";
+            }}
+        }}
+    </script>
+</body>
+</html>"""
+
+st.download_button(
+    label="📥 Download Interactive HTML Report",
+    data=html_interactive_export,
+    file_name=f"Z_Groups_Report_{selected_month}_{selected_year}.html",
+    mime="text/html"
+)
