@@ -726,7 +726,7 @@ with col_notes:
         st.info(f"✅ **Outstanding:** All active open-balance accounts have assigned analysts in {report_period_str}. Zero unattended balance detected.")
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# STEP 6: FULL INTERACTIVE HTML EXPORT GENERATOR (CON LOGO BASE64 & SCROLLABLE TABLES)
+# STEP 6: FULL INTERACTIVE HTML EXPORT GENERATOR (INCLUYE BLOQUES DE NOTAS AZULES)
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.write("---")
 st.subheader("📦 Export Options")
@@ -765,18 +765,27 @@ fmt_dist = {
 }
 dist_table_html = get_formatted_html_table(df_dist_final, fmt_dist)
 
+# Bloque Transitions HTML
 if not df_changes_formatted.empty:
-    transitions_html = get_formatted_html_table(df_changes_formatted, {"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"})
+    transitions_table_html = get_formatted_html_table(df_changes_formatted, {"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"})
+    transitions_note_html = f'<div class="alert-box">💰 <strong>Financial Impact of Assignments:</strong> Identified <strong>{transferred_count}</strong> accounts transferred between valid analysts for {report_period_str}, representing <strong>${transferred_balance:,.2f}</strong> in Total Balance and <strong>${transferred_past_due:,.2f}</strong> in Total Past Due.</div>'
+    transitions_html = transitions_table_html + transitions_note_html
 else:
     transitions_html = f'<div class="alert-box">✅ No credit analyst assignment transitions were detected between valid analysts for {report_period_str}.</div>'
 
+# Bloque New Accounts HTML con Nota de Impacto en Dinero
 if not df_new_formatted.empty:
-    new_accounts_html = get_formatted_html_table(df_new_formatted, {"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"})
+    new_accounts_table_html = get_formatted_html_table(df_new_formatted, {"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"})
+    new_accounts_note_html = f'<div class="alert-box"><strong>New Accounts Impact:</strong> Identified <strong>{new_accounts_count}</strong> new open AR accounts in <strong>{report_period_str}</strong> with a combined balance of <strong>${new_accounts_balance:,.2f}</strong>.</div>'
+    new_accounts_html = new_accounts_table_html + new_accounts_note_html
 else:
     new_accounts_html = f'<div class="alert-box">No new open AR accounts were identified for {report_period_str}.</div>'
 
+# Bloque Unassigned HTML
 if not df_unassigned_formatted.empty:
-    unassigned_html = get_formatted_html_table(df_unassigned_formatted, {"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"})
+    unassigned_table_html = get_formatted_html_table(df_unassigned_formatted, {"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"})
+    unassigned_note_html = f'<div class="alert-box"><strong>Total Exposure Unassigned:</strong> There are <strong>{unassigned_count}</strong> accounts in <strong>{report_period_str}</strong> with open balance missing BOTH Z-Group and Credit Analyst, representing a total of <strong>${unassigned_balance_sum:,.2f}</strong>.</div>'
+    unassigned_html = unassigned_table_html + unassigned_note_html
 else:
     unassigned_html = f'<div class="alert-box">Great! No active open-balance accounts were found with both Z-Group and Credit Analyst empty in {report_period_str}.</div>'
 
@@ -810,11 +819,20 @@ html_interactive_export = f"""<!DOCTYPE html>
         .kpi-value {{ font-size: 28px; font-weight: 800; color: #001fbe; margin-top: 6px; }}
         
         .section-title {{ font-size: 20px; font-weight: 700; color: #011e6a; margin: 30px 0 15px 0; }}
+        .section-desc {{ font-size: 14px; color: #64748b; margin-top: -10px; margin-bottom: 15px; }}
         
+        /* Banner de Alerta y Nota Azul Corporativo */
         .alert-box {{
-            background-color: #e0f2fe; border: 1px solid #7dd3fc; border-left: 6px solid #0284c7;
-            padding: 14px 18px; color: #0369a1; border-radius: 10px; font-weight: 600; font-size: 14px;
-            margin-bottom: 15px;
+            background-color: #e0f2fe;
+            border: 1px solid #7dd3fc;
+            border-left: 6px solid #0284c7;
+            padding: 14px 18px;
+            color: #0369a1;
+            border-radius: 10px;
+            font-weight: 500;
+            font-size: 14px;
+            margin-top: 10px;
+            margin-bottom: 20px;
         }}
         
         /* Contenedor de Tabla con Altura Fija y Scroll Vertical */
@@ -823,7 +841,7 @@ html_interactive_export = f"""<!DOCTYPE html>
             overflow-y: auto;
             border: 1px solid #e2e8f0;
             border-radius: 10px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             background: white;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }}
@@ -880,12 +898,15 @@ html_interactive_export = f"""<!DOCTYPE html>
     </div>
 
     <div class="section-title">🔄 Credit Analyst Assignment Transitions</div>
+    <div class="section-desc">These are the accounts that transitioned strictly from one specific credit analyst to another (excluding unassigned states or None).</div>
     {transitions_html}
 
     <div class="section-title">✨ New Accounts of the Month</div>
+    <div class="section-desc">These are new active accounts identified in <strong>{report_period_str}</strong> with open AR that did not exist in the previous month report.</div>
     {new_accounts_html}
 
     <div class="section-title">⚠️ Unassigned Accounts</div>
+    <div class="section-desc">These are <strong>{report_period_str}</strong> accounts with an open balance where BOTH Z-Group and Credit Analyst are empty or unassigned.</div>
     {unassigned_html}
 
     <div class="section-title">👥 Analyst Portfolio Distribution</div>
@@ -903,7 +924,7 @@ html_interactive_export = f"""<!DOCTYPE html>
             </ul>
         </div>
         <div class="notes-col">
-            <div class="alert-box">
+            <div class="alert-box" style="margin-top: 0;">
                 {"⚠️ <strong>Action Required:</strong> Review unassigned accounts." if unassigned_count > 0 else "✅ All accounts assigned successfully."}
             </div>
         </div>
