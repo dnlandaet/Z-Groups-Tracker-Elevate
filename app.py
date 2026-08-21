@@ -726,7 +726,7 @@ with col_notes:
         st.info(f"✅ **Outstanding:** All active open-balance accounts have assigned analysts in {report_period_str}. Zero unattended balance detected.")
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
-# STEP 6: FULL INTERACTIVE HTML EXPORT GENERATOR (CON LOGO BASE64)
+# STEP 6: FULL INTERACTIVE HTML EXPORT GENERATOR (CON LOGO BASE64 & SCROLLABLE TABLES)
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.write("---")
 st.subheader("📦 Export Options")
@@ -746,6 +746,7 @@ if logo_b64:
 else:
     logo_html_tag = '<div style="font-size: 28px; font-weight: 800; color: #011e6a; margin-bottom: 10px;">▲ AMRIZE</div>'
 
+# Generador de tablas HTML envueltas en un contenedor con Scroll de altura fija y Sticky Header
 def get_formatted_html_table(df, format_dict):
     if df.empty:
         return ""
@@ -753,7 +754,9 @@ def get_formatted_html_table(df, format_dict):
     for col, fmt in format_dict.items():
         if col in df_copy.columns:
             df_copy[col] = df_copy[col].apply(lambda x: fmt.format(x) if pd.notnull(x) and isinstance(x, (int, float)) else x)
-    return df_copy.to_html(classes='styled-table', index=False, escape=False)
+    
+    table_raw_html = df_copy.to_html(classes='styled-table', index=False, escape=False)
+    return f'<div class="table-scroll-container">{table_raw_html}</div>'
 
 fmt_dist = {
     "Prev Accounts (All)": "{:,.0f}", "Curr Accounts (All)": "{:,.0f}",
@@ -814,12 +817,33 @@ html_interactive_export = f"""<!DOCTYPE html>
             margin-bottom: 15px;
         }}
         
-        .styled-table {{
-            width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 25px; background: white;
-            border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        /* Contenedor de Tabla con Altura Fija y Scroll Vertical */
+        .table-scroll-container {{
+            max-height: 380px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }}
-        .styled-table th, .styled-table td {{ padding: 12px 16px; text-align: left; font-size: 13px; }}
-        .styled-table th {{ background-color: #011e6a; color: white; font-weight: 700; }}
+
+        .styled-table {{
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }}
+        .styled-table th, .styled-table td {{ padding: 12px 16px; text-align: left; font-size: 13px; border-bottom: 1px solid #e2e8f0; }}
+        
+        /* Encabezado congelado (Sticky) durante el Scroll */
+        .styled-table th {{
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: #011e6a;
+            color: white;
+            font-weight: 700;
+        }}
         .styled-table tr:nth-child(even) {{ background-color: #f8fafc; }}
         .styled-table tr:hover {{ background-color: #f1f5f9; }}
         
