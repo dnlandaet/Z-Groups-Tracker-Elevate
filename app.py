@@ -4,14 +4,18 @@ import os
 import re
 from datetime import datetime
 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # 1. Page Configuration
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.set_page_config(
     page_title="Amrize - Z-Groups Tracker Elevate",
     page_icon="📊",
     layout="wide"
 )
 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # 2. Modern Light UI - TODAS LAS ALERTAS FORZADAS EN AZUL CORPORATIVO SUAVE
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.markdown("""
     <style>
     /* Global App Light Background */
@@ -144,7 +148,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- LOGIN SYSTEM ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# LOGIN SYSTEM
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 
@@ -179,7 +185,9 @@ if not st.session_state["logged_in"]:
             
     st.stop()
 
-# --- BRANDING: AUTOMATIC LOGO DETECTOR (After Login) ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# BRANDING & LOGO
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 logo_file = None
 possible_names = ["Amrize_Logo_2025.svg", "Amrize_Logo_2025.png", "logo.png", "logo.svg"]
 for name in possible_names:
@@ -194,7 +202,9 @@ else:
 
 st.title("Z-Groups Tracker Elevate")
 
-# --- SIDEBAR: SELECTOR DE MES Y AÑO DEL REPORTE ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# SIDEBAR: SELECTOR DE MES Y AÑO DEL REPORTE
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.sidebar.header("🗓️ Report Period Selection")
 
 months_list = [
@@ -214,7 +224,9 @@ report_period_str = f"{selected_month} {selected_year}"
 # Badge de Periodo Estilizado
 st.markdown(f'<div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>', unsafe_allow_html=True)
 
-# --- HELPER FUNCTION: UNIVERSAL FILE READER ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# HELPER FUNCTION: UNIVERSAL FILE READER
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 def load_data_file(uploaded_file):
     """Dynamically reads Excel (.xlsx, .xls) and CSV files"""
     if uploaded_file is not None:
@@ -229,7 +241,9 @@ def load_data_file(uploaded_file):
             return pd.read_excel(uploaded_file)
     return None
 
-# --- STEP 1: DATA SOURCE SELECTION ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# STEP 1: DATA SOURCE SELECTION
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.sidebar.header("Data Source Selection")
 data_source = st.sidebar.radio(
     "Choose Data Source:",
@@ -286,7 +300,9 @@ if df_prev_raw is None or df_curr_raw is None:
     st.info("💡 Please upload both previous and current month files or load the Google Sheets data from the sidebar.")
     st.stop()
 
-# --- STEP 2: ROBUST DATA CLEANING & VALIDATION ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# STEP 2: ROBUST DATA CLEANING & VALIDATION
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 def sanitize_and_normalize_columns(df):
     df.columns = df.columns.astype(str).str.strip()
@@ -341,7 +357,9 @@ def clean_data(df):
 df_prev_global = clean_data(df_prev_raw)
 df_curr_global = clean_data(df_curr_raw)
 
-# --- STEP 3: GENERAL PORTFOLIO SUMMARY ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# STEP 3: GENERAL PORTFOLIO SUMMARY
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 prev_active_accounts = df_prev_global[df_prev_global["Status"].str.upper() == "ACTIVE"]
 curr_active_accounts = df_curr_global[df_curr_global["Status"].str.upper() == "ACTIVE"]
 
@@ -377,7 +395,9 @@ with col3:
 
 st.write("---")
 
-# --- SIDEBAR FILTER: STATUS ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# SIDEBAR FILTER: STATUS
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 df_prev_clean = df_prev_global.copy()
 df_curr_clean = df_curr_global.copy()
 
@@ -395,7 +415,9 @@ if available_statuses and available_statuses != ["Unspecified"]:
 df_prev_open = df_prev_clean[df_prev_clean["Total Balance"] != 0]
 df_curr_open = df_curr_clean[df_curr_clean["Total Balance"] != 0]
 
-# --- STEP 4: STRICT ANALYST-TO-ANALYST TRANSITION TABLE ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# STEP 4: STRICT ANALYST-TO-ANALYST TRANSITION TABLE
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.subheader("🔄 Credit Analyst Assignment Transitions")
 st.markdown("These are the accounts that transitioned strictly **from one specific credit analyst to another** (excluding unassigned states or None).")
 
@@ -451,11 +473,14 @@ if not df_analyst_changes.empty:
         f"representing **${transferred_balance:,.2f}** in Total Balance and **${transferred_past_due:,.2f}** in Total Past Due."
     )
 else:
+    df_changes_formatted = pd.DataFrame()
     st.info(f"✅ No credit analyst assignment transitions were detected between valid analysts for {report_period_str}.")
 
 st.write("---")
 
-# --- NEW SECTION: NEW ACCOUNTS OF THE MONTH ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# NEW SECTION: NEW ACCOUNTS OF THE MONTH
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.subheader("✨ New Accounts of the Month")
 st.markdown(f"These are new active accounts identified in **{report_period_str}** with open AR that did not exist in the previous month report.")
 
@@ -485,11 +510,14 @@ if not df_new_accounts.empty:
         f"New Accounts Impact: Identified {new_accounts_count} new open AR accounts in {report_period_str} with a combined balance of ${new_accounts_balance:,.2f}."
     )
 else:
+    df_new_formatted = pd.DataFrame()
     st.info(f"No new open AR accounts were identified for {report_period_str}.")
 
 st.write("---")
 
-# --- UNASSIGNED ACCOUNTS SECTION ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# UNASSIGNED ACCOUNTS SECTION
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.subheader("⚠️ Unassigned Accounts")
 st.markdown(f"These are **{report_period_str}** accounts with an open balance where **BOTH Z-Group and Credit Analyst are empty or unassigned**.")
 
@@ -532,11 +560,14 @@ if not df_unassigned.empty:
         f"representing a total of ${unassigned_balance_sum:,.2f}."
     )
 else:
+    df_unassigned_formatted = pd.DataFrame()
     st.info(f"Great! No active open-balance accounts were found with both Z-Group and Credit Analyst empty in {report_period_str}.")
 
 st.write("---")
 
-# --- STEP 5: ANALYST PORTFOLIO DISTRIBUTION ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# STEP 5: ANALYST PORTFOLIO DISTRIBUTION
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.subheader("👥 Analyst Portfolio Distribution & Monthly Variation")
 
 df_prev_valid_analysts = df_prev_global[~df_prev_global["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)]
@@ -615,7 +646,9 @@ st.dataframe(
 
 st.write("---")
 
-# --- EXECUTIVE SUMMARY & INSIGHTS ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# EXECUTIVE SUMMARY & INSIGHTS
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.subheader(f"📋 Executive Summary & Insights ({report_period_str})")
 
 if not df_dist_merged.empty:
@@ -691,56 +724,103 @@ with col_notes:
     else:
         st.info(f"✅ **Outstanding:** All active open-balance accounts have assigned analysts in {report_period_str}. Zero unattended balance detected.")
 
-# --- STEP 6: EXPORT INTERACTIVE HTML REPORT BUTTON ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# STEP 6: FULL INTERACTIVE HTML EXPORT GENERATOR
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.write("---")
 st.subheader("📦 Export Options")
 
-# Generate HTML Table string from current DataFrames dynamically
-dist_table_html = df_dist_final.to_html(classes='styled-table', index=False)
+def get_formatted_html_table(df, format_dict):
+    if df.empty:
+        return ""
+    df_copy = df.copy()
+    for col, fmt in format_dict.items():
+        if col in df_copy.columns:
+            df_copy[col] = df_copy[col].apply(lambda x: fmt.format(x) if pd.notnull(x) and isinstance(x, (int, float)) else x)
+    return df_copy.to_html(classes='styled-table', index=False, escape=False)
+
+fmt_dist = {
+    "Prev Accounts (All)": "{:,.0f}", "Curr Accounts (All)": "{:,.0f}",
+    "Prev Acc Open AR": "{:,.0f}", "Curr Acc Open AR": "{:,.0f}",
+    "Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"
+}
+dist_table_html = get_formatted_html_table(df_dist_final, fmt_dist)
+
+if not df_changes_formatted.empty:
+    transitions_html = get_formatted_html_table(df_changes_formatted, {"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"})
+else:
+    transitions_html = f'<div class="alert-box">✅ No credit analyst assignment transitions were detected between valid analysts for {report_period_str}.</div>'
+
+if not df_new_formatted.empty:
+    new_accounts_html = get_formatted_html_table(df_new_formatted, {"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"})
+else:
+    new_accounts_html = f'<div class="alert-box">No new open AR accounts were identified for {report_period_str}.</div>'
+
+if not df_unassigned_formatted.empty:
+    unassigned_html = get_formatted_html_table(df_unassigned_formatted, {"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"})
+else:
+    unassigned_html = f'<div class="alert-box">Great! No active open-balance accounts were found with both Z-Group and Credit Analyst empty in {report_period_str}.</div>'
 
 html_interactive_export = f"""<!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Amrize - Z-Groups Tracker Elevate ({report_period_str})</title>
     <style>
         body {{
-            font-family: 'Inter', Arial, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: #f8fafc;
             color: #1e293b;
             margin: 0;
             padding: 30px;
         }}
         .header {{ margin-bottom: 24px; }}
-        .title {{ font-size: 26px; font-weight: 800; color: #011e6a; margin-bottom: 5px; }}
+        .title {{ font-size: 28px; font-weight: 800; color: #011e6a; margin-bottom: 8px; }}
         .period-badge {{
             display: inline-block; background: #f0f5ff; color: #011e6a;
-            padding: 6px 14px; border-radius: 20px; font-weight: 600; font-size: 13px;
+            padding: 8px 18px; border-radius: 20px; font-weight: 600; font-size: 14px;
             border: 1px solid #93c5fd; margin-bottom: 20px;
         }}
-        .kpi-container {{ display: flex; gap: 15px; margin-bottom: 25px; }}
+        .kpi-container {{ display: flex; gap: 15px; margin-bottom: 30px; }}
         .kpi-card {{
             flex: 1; background: #f0f5ff; border: 1px solid #dbeafe;
-            border-left: 6px solid #2563eb; padding: 15px; border-radius: 12px;
+            border-left: 6px solid #2563eb; padding: 20px; border-radius: 12px;
+            box-sizing: border-box;
         }}
-        .kpi-title {{ font-size: 12px; color: #334155; font-weight: 600; text-transform: uppercase; }}
-        .kpi-value {{ font-size: 26px; font-weight: 800; color: #001fbe; margin-top: 5px; }}
+        .kpi-title {{ font-size: 12px; color: #334155; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }}
+        .kpi-value {{ font-size: 28px; font-weight: 800; color: #001fbe; margin-top: 6px; }}
+        
+        .section-title {{ font-size: 20px; font-weight: 700; color: #011e6a; margin: 30px 0 15px 0; }}
+        
+        .alert-box {{
+            background-color: #e0f2fe; border: 1px solid #7dd3fc; border-left: 6px solid #0284c7;
+            padding: 14px 18px; color: #0369a1; border-radius: 10px; font-weight: 600; font-size: 14px;
+            margin-bottom: 15px;
+        }}
+        
         .styled-table {{
-            width: 100%; border-collapse: collapse; margin-top: 15px; background: white;
-            border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0;
+            width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 25px; background: white;
+            border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }}
-        .styled-table th, .styled-table td {{ padding: 10px 14px; text-align: left; font-size: 13px; }}
-        .styled-table th {{ background-color: #011e6a; color: white; }}
+        .styled-table th, .styled-table td {{ padding: 12px 16px; text-align: left; font-size: 13px; }}
+        .styled-table th {{ background-color: #011e6a; color: white; font-weight: 700; }}
         .styled-table tr:nth-child(even) {{ background-color: #f8fafc; }}
+        .styled-table tr:hover {{ background-color: #f1f5f9; }}
+        
         input[type="text"] {{
-            width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 12px; box-sizing: border-box;
+            width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 15px; box-sizing: border-box;
         }}
+        
+        .insights-grid {{ display: flex; gap: 20px; background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; }}
+        .insights-col {{ flex: 2; }}
+        .notes-col {{ flex: 1; }}
+        ul {{ line-height: 1.8; }}
     </style>
 </head>
 <body>
     <div class="header">
         <div class="title">Z-Groups Tracker Elevate</div>
-        <div class="period-badge">📅 Active Report Period: {report_period_str}</div>
+        <div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>
     </div>
 
     <div class="kpi-container">
@@ -758,21 +838,47 @@ html_interactive_export = f"""<!DOCTYPE html>
         </div>
     </div>
 
-    <h2>👥 Analyst Portfolio Distribution</h2>
-    <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="🔍 Filter table by Analyst or values...">
-    
-    <div id="tableContainer">
-        {dist_table_html}
+    <div class="section-title">🔄 Credit Analyst Assignment Transitions</div>
+    {transitions_html}
+
+    <div class="section-title">✨ New Accounts of the Month</div>
+    {new_accounts_html}
+
+    <div class="section-title">⚠️ Unassigned Accounts</div>
+    {unassigned_html}
+
+    <div class="section-title">👥 Analyst Portfolio Distribution</div>
+    <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="🔍 Search/Filter table by Analyst or Values...">
+    {dist_table_html}
+
+    <div class="section-title">📋 Executive Summary & Insights ({report_period_str})</div>
+    <div class="insights-grid">
+        <div class="insights-col">
+            <ul>
+                <li><strong>Workload Leader:</strong> <strong>{top_vol_analyst}</strong> manages the highest volume of active clients with <strong>{top_vol_count:,}</strong> accounts.</li>
+                <li><strong>Risk Exposure Leader:</strong> <strong>{top_exp_analyst}</strong> holds the highest portfolio risk exposure totaling <strong>${top_exp_balance:,.2f}</strong> in Total Balance.</li>
+                <li><strong>New Clients Added:</strong> Identified <strong>{new_accounts_count}</strong> brand-new client accounts in <strong>{report_period_str}</strong>, representing <strong>${new_accounts_balance:,.2f}</strong> in open balance.</li>
+                <li><strong>Unassigned Portfolio:</strong> There are <strong>{unassigned_count}</strong> unassigned accounts missing both Z-Group and Credit Analyst, representing <strong>${unassigned_balance_sum:,.2f}</strong>.</li>
+            </ul>
+        </div>
+        <div class="notes-col">
+            <div class="alert-box">
+                {"⚠️ <strong>Action Required:</strong> Review unassigned accounts." if unassigned_count > 0 else "✅ All accounts assigned successfully."}
+            </div>
+        </div>
     </div>
 
     <script>
         function filterTable() {{
             var input = document.getElementById("searchInput").value.toUpperCase();
-            var rows = document.querySelectorAll(".styled-table tr");
-            for (var i = 1; i < rows.length; i++) {{
-                var text = rows[i].innerText.toUpperCase();
-                rows[i].style.display = text.indexOf(input) > -1 ? "" : "none";
-            }}
+            var tables = document.querySelectorAll(".styled-table");
+            tables.forEach(table => {{
+                var rows = table.querySelectorAll("tr");
+                for (var i = 1; i < rows.length; i++) {{
+                    var text = rows[i].innerText.toUpperCase();
+                    rows[i].style.display = text.indexOf(input) > -1 ? "" : "none";
+                }}
+            }});
         }}
     </script>
 </body>
