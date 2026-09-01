@@ -691,3 +691,20 @@ with col_notes:
         )
     else:
         st.info(f"✅ **Outstanding:** All active open-balance accounts have assigned analysts in {report_period_str}. Zero unattended balance detected.")
+
+        def check_login():
+    """Validates credentials from secrets.toml or falls back to hardcoded values"""
+    # Intenta leer desde st.secrets si existe, si no usa los valores por defecto
+    valid_user = st.secrets.get("credentials", {}).get("username", "ElevateBE")
+    valid_pass = st.secrets.get("credentials", {}).get("password", "Elevate2026")
+
+    if (
+        st.session_state["username_input"] == valid_user
+        and st.session_state["password_input"] == valid_pass
+    ):
+        st.session_state["logged_in"] = True
+        st.success("Login successful!")
+        if "login_error" in st.session_state:
+            del st.session_state["login_error"]
+    else:
+        st.session_state["login_error"] = "❌ Incorrect username or password."
