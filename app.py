@@ -2,16 +2,21 @@ import streamlit as st
 import pandas as pd
 import os
 import re
+import base64
 from datetime import datetime
 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # 1. Page Configuration
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.set_page_config(
     page_title="Amrize - Z-Groups Tracker Elevate",
     page_icon="📊",
     layout="wide"
 )
 
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # 2. Modern Light UI - TODAS LAS ALERTAS FORZADAS EN AZUL CORPORATIVO SUAVE
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.markdown("""
     <style>
     /* Global App Light Background */
@@ -144,7 +149,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- LOGIN SYSTEM ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# LOGIN SYSTEM
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 
@@ -179,7 +186,9 @@ if not st.session_state["logged_in"]:
             
     st.stop()
 
-# --- BRANDING: AUTOMATIC LOGO DETECTOR (After Login) ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# BRANDING & LOGO
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 logo_file = None
 possible_names = ["Amrize_Logo_2025.svg", "Amrize_Logo_2025.png", "logo.png", "logo.svg"]
 for name in possible_names:
@@ -194,7 +203,9 @@ else:
 
 st.title("Z-Groups Tracker Elevate")
 
-# --- SIDEBAR: SELECTOR DE MES Y AÑO DEL REPORTE ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# SIDEBAR: SELECTOR DE MES Y AÑO DEL REPORTE
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.sidebar.header("🗓️ Report Period Selection")
 
 months_list = [
@@ -213,9 +224,10 @@ report_period_str = f"{selected_month} {selected_year}"
 
 # Badge de Periodo Estilizado
 st.markdown(f'<div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>', unsafe_allow_html=True)
-st.markdown("Upload your comparative monthly files (Excel or CSV) or connect to Google Sheets to track analyst changes and overall portfolio movement.")
 
-# --- HELPER FUNCTION: UNIVERSAL FILE READER ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# HELPER FUNCTION: UNIVERSAL FILE READER
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 def load_data_file(uploaded_file):
     """Dynamically reads Excel (.xlsx, .xls) and CSV files"""
     if uploaded_file is not None:
@@ -230,7 +242,9 @@ def load_data_file(uploaded_file):
             return pd.read_excel(uploaded_file)
     return None
 
-# --- STEP 1: DATA SOURCE SELECTION ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# STEP 1: DATA SOURCE SELECTION
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.sidebar.header("Data Source Selection")
 data_source = st.sidebar.radio(
     "Choose Data Source:",
@@ -287,7 +301,9 @@ if df_prev_raw is None or df_curr_raw is None:
     st.info("💡 Please upload both previous and current month files or load the Google Sheets data from the sidebar.")
     st.stop()
 
-# --- STEP 2: ROBUST DATA CLEANING & VALIDATION ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# STEP 2: ROBUST DATA CLEANING & VALIDATION
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
 def sanitize_and_normalize_columns(df):
     df.columns = df.columns.astype(str).str.strip()
@@ -342,7 +358,9 @@ def clean_data(df):
 df_prev_global = clean_data(df_prev_raw)
 df_curr_global = clean_data(df_curr_raw)
 
-# --- STEP 3: GENERAL PORTFOLIO SUMMARY ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# STEP 3: GENERAL PORTFOLIO SUMMARY
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 prev_active_accounts = df_prev_global[df_prev_global["Status"].str.upper() == "ACTIVE"]
 curr_active_accounts = df_curr_global[df_curr_global["Status"].str.upper() == "ACTIVE"]
 
@@ -378,7 +396,9 @@ with col3:
 
 st.write("---")
 
-# --- SIDEBAR FILTER: STATUS ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# SIDEBAR FILTER: STATUS
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 df_prev_clean = df_prev_global.copy()
 df_curr_clean = df_curr_global.copy()
 
@@ -396,7 +416,9 @@ if available_statuses and available_statuses != ["Unspecified"]:
 df_prev_open = df_prev_clean[df_prev_clean["Total Balance"] != 0]
 df_curr_open = df_curr_clean[df_curr_clean["Total Balance"] != 0]
 
-# --- STEP 4: STRICT ANALYST-TO-ANALYST TRANSITION TABLE ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# STEP 4: STRICT ANALYST-TO-ANALYST TRANSITION TABLE
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.subheader("🔄 Credit Analyst Assignment Transitions")
 st.markdown("These are the accounts that transitioned strictly **from one specific credit analyst to another** (excluding unassigned states or None).")
 
@@ -452,11 +474,14 @@ if not df_analyst_changes.empty:
         f"representing **${transferred_balance:,.2f}** in Total Balance and **${transferred_past_due:,.2f}** in Total Past Due."
     )
 else:
+    df_changes_formatted = pd.DataFrame()
     st.info(f"✅ No credit analyst assignment transitions were detected between valid analysts for {report_period_str}.")
 
 st.write("---")
 
-# --- NEW SECTION: NEW ACCOUNTS OF THE MONTH ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# NEW SECTION: NEW ACCOUNTS OF THE MONTH
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.subheader("✨ New Accounts of the Month")
 st.markdown(f"These are new active accounts identified in **{report_period_str}** with open AR that did not exist in the previous month report.")
 
@@ -486,11 +511,14 @@ if not df_new_accounts.empty:
         f"New Accounts Impact: Identified {new_accounts_count} new open AR accounts in {report_period_str} with a combined balance of ${new_accounts_balance:,.2f}."
     )
 else:
+    df_new_formatted = pd.DataFrame()
     st.info(f"No new open AR accounts were identified for {report_period_str}.")
 
 st.write("---")
 
-# --- UNASSIGNED ACCOUNTS SECTION ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# UNASSIGNED ACCOUNTS SECTION
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.subheader("⚠️ Unassigned Accounts")
 st.markdown(f"These are **{report_period_str}** accounts with an open balance where **BOTH Z-Group and Credit Analyst are empty or unassigned**.")
 
@@ -533,11 +561,14 @@ if not df_unassigned.empty:
         f"representing a total of ${unassigned_balance_sum:,.2f}."
     )
 else:
+    df_unassigned_formatted = pd.DataFrame()
     st.info(f"Great! No active open-balance accounts were found with both Z-Group and Credit Analyst empty in {report_period_str}.")
 
 st.write("---")
 
-# --- STEP 5: ANALYST PORTFOLIO DISTRIBUTION ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# STEP 5: ANALYST PORTFOLIO DISTRIBUTION
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.subheader("👥 Analyst Portfolio Distribution & Monthly Variation")
 
 df_prev_valid_analysts = df_prev_global[~df_prev_global["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)]
@@ -616,7 +647,9 @@ st.dataframe(
 
 st.write("---")
 
-# --- EXECUTIVE SUMMARY & INSIGHTS ---
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
+# EXECUTIVE SUMMARY & INSIGHTS
+# # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 st.subheader(f"📋 Executive Summary & Insights ({report_period_str})")
 
 if not df_dist_merged.empty:
@@ -691,20 +724,3 @@ with col_notes:
         )
     else:
         st.info(f"✅ **Outstanding:** All active open-balance accounts have assigned analysts in {report_period_str}. Zero unattended balance detected.")
-
-        def check_login():
-    """Validates credentials from secrets.toml or falls back to hardcoded values"""
-    # Intenta leer desde st.secrets si existe, si no usa los valores por defecto
-    valid_user = st.secrets.get("credentials", {}).get("username", "ElevateBE")
-    valid_pass = st.secrets.get("credentials", {}).get("password", "Elevate2026")
-
-    if (
-        st.session_state["username_input"] == valid_user
-        and st.session_state["password_input"] == valid_pass
-    ):
-        st.session_state["logged_in"] = True
-        st.success("Login successful!")
-        if "login_error" in st.session_state:
-            del st.session_state["login_error"]
-    else:
-        st.session_state["login_error"] = "❌ Incorrect username or password."
