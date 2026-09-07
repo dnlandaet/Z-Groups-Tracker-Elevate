@@ -663,24 +663,18 @@ else:
 col_summary, col_notes = st.columns([2, 1])
 
 with col_summary:
-    summary_text = f"""
-    * **Workload Leader:** **{top_vol_analyst}** manages the highest volume of active clients with **{top_vol_count:,}** accounts.
-    * **Risk Exposure Leader:** **{top_exp_analyst}** holds the highest portfolio risk exposure totaling **${top_exp_balance:,.2f}** in Total Balance.
-    """
+    summary_text = f"""* **Workload Leader:** **{top_vol_analyst}** manages the highest volume of active clients with **{top_vol_count:,}** accounts.
+* **Risk Exposure Leader:** **{top_exp_analyst}** holds the highest portfolio risk exposure totaling **${top_exp_balance:,.2f}** in Total Balance.
+"""
     
     if accounts_lost > 0:
-        summary_text += f"""
-    * **Highest Account Reduction:** **{lost_analyst}** had **{accounts_lost}** accounts removed from their portfolio in **{report_period_str}**, representing **${lost_balance_real:,.2f}** in Total Balance (based on current month values).
-        """
+        summary_text += f"* **Highest Account Reduction:** **{lost_analyst}** had **{accounts_lost}** accounts removed from their portfolio in **{report_period_str}**, representing **${lost_balance_real:,.2f}** in Total Balance (based on current month values).\n"
     else:
-        summary_text += f"""
-    * **Highest Account Reduction:** No active analysts experienced account removals in **{report_period_str}**.
-        """
+        summary_text += f"* **Highest Account Reduction:** No active analysts experienced account removals in **{report_period_str}**.\n"
 
-    summary_text += f"""
-    * **New Clients Added:** Identified **{new_accounts_count}** brand-new client accounts in **{report_period_str}**, representing **${new_accounts_balance:,.2f}** in open balance.
-    * **Unassigned Portfolio:** There are **{unassigned_count}** unassigned accounts missing both Z-Group and Credit Analyst, representing **${unassigned_balance_sum:,.2f}**.
-    """
+    summary_text += f"""* **New Clients Added:** Identified **{new_accounts_count}** brand-new client accounts in **{report_period_str}**, representing **${new_accounts_balance:,.2f}** in open balance.
+* **Unassigned Portfolio:** There are **{unassigned_count}** unassigned accounts missing both Z-Group and Credit Analyst, representing **${unassigned_balance_sum:,.2f}**."""
+    
     st.markdown(summary_text)
 
 with col_notes:
