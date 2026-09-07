@@ -217,15 +217,20 @@ st.markdown("Upload your comparative monthly files (Excel or CSV) or connect to 
 
 # --- HELPER FUNCTION: UNIVERSAL FILE READER ---
 def load_data_file(uploaded_file):
-    """Dynamically reads Excel (.xlsx, .xls) and large CSV files"""
+    """Dynamically reads Excel (.xlsx, .xls) and large CSV files safely"""
     if uploaded_file is not None:
         file_name = uploaded_file.name.lower()
         if file_name.endswith('.csv'):
             try:
                 return pd.read_csv(uploaded_file, encoding='utf-8', low_memory=False)
-            except (UnicodeDecodeError, Exception):
+            except Exception:
                 uploaded_file.seek(0)
-                return pd.read_csv(uploaded_file, encoding='latin1', low_memory=False)
+                try:
+                    return pd.read_csv(uploaded_file, encoding='latin1', low_memory=False)
+                except Exception:
+                    uploaded_file.seek(0)
+                    chunks = pd.read_csv(uploaded_file, encoding='latin1', chunksize=10000, low_memory=False)
+                    return pd.concat(chunks, ignore_index=True)
         else:
             return pd.read_excel(uploaded_file)
     return None
@@ -241,8 +246,8 @@ df_prev_raw = None
 df_curr_raw = None
 
 if data_source == "Upload Files (Excel / CSV)":
-    prev_file = st.sidebar.file_uploader("Upload PREVIOUS MONTH file", type=["xlsx", "xls", "csv"], max_upload_size=500)
-    curr_file = st.sidebar.file_uploader("Upload CURRENT MONTH file", type=["xlsx", "xls", "csv"], max_upload_size=500)
+    prev_file = st.sidebar.file_uploader("Upload PREVIOUS MONTH file", type=["xlsx", "xls", "csv"])
+    curr_file = st.sidebar.file_uploader("Upload CURRENT MONTH file", type=["xlsx", "xls", "csv"])
     
     if prev_file and curr_file:
         try:
