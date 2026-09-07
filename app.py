@@ -213,7 +213,7 @@ report_period_str = f"{selected_month} {selected_year}"
 
 # Badge de Periodo Estilizado
 st.markdown(f'<div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>', unsafe_allow_html=True)
-st.markdown("Upload your comparative monthly files (Excel or CSV) or connect to Google Sheets to track analyst changes and overall portfolio movement.")
+st.markdown("Upload your comparative monthly files (Excel or CSV) or connect to local files to track analyst changes and overall portfolio movement.")
 
 # --- HELPER FUNCTION: UNIVERSAL FILE READER ---
 def load_data_file(uploaded_file):
@@ -222,10 +222,10 @@ def load_data_file(uploaded_file):
         file_name = uploaded_file.name.lower()
         if file_name.endswith('.csv'):
             try:
-                return pd.read_csv(uploaded_file, encoding='utf-8')
+                return pd.read_csv(uploaded_file, encoding='utf-8', low_memory=False)
             except UnicodeDecodeError:
                 uploaded_file.seek(0)
-                return pd.read_csv(uploaded_file, encoding='latin1')
+                return pd.read_csv(uploaded_file, encoding='latin1', low_memory=False)
         else:
             return pd.read_excel(uploaded_file)
     return None
@@ -234,13 +234,28 @@ def load_data_file(uploaded_file):
 st.sidebar.header("Data Source Selection")
 data_source = st.sidebar.radio(
     "Choose Data Source:",
-    ("Upload Files (Excel / CSV)", "Connect Google Sheets")
+    ("📁 Local Files (Fastest - No Upload)", "Upload Files (Excel / CSV)")
 )
 
 df_prev_raw = None
 df_curr_raw = None
 
-if data_source == "Upload Files (Excel / CSV)":
+if data_source == "📁 Local Files (Fastest - No Upload)":
+    st.sidebar.subheader("Local Files Detection")
+    prev_path = "prev_month.csv"
+    curr_path = "curr_month.csv"
+    
+    if os.path.exists(prev_path) and os.path.exists(curr_path):
+        try:
+            df_prev_raw = pd.read_csv(prev_path, encoding='latin1', low_memory=False)
+            df_curr_raw = pd.read_csv(curr_path, encoding='latin1', low_memory=False)
+            st.sidebar.success("Local files loaded successfully!")
+        except Exception as e:
+            st.sidebar.error(f"Error loading local files: {e}")
+    else:
+        st.sidebar.warning("⚠️ Make sure 'prev_month.csv' and 'curr_month.csv' exist in your project folder.")
+
+else:
     prev_file = st.sidebar.file_uploader("Upload PREVIOUS MONTH file", type=["xlsx", "xls", "csv"])
     curr_file = st.sidebar.file_uploader("Upload CURRENT MONTH file", type=["xlsx", "xls", "csv"])
     
@@ -252,39 +267,12 @@ if data_source == "Upload Files (Excel / CSV)":
             st.error(f"Error reading uploaded files: {e}")
             st.stop()
 
-else:
-    default_sheet_url = "https://docs.google.com/spreadsheets/d/1HmShbAOnElJOQ9qy0lvYkxL6qxS7dc2xl9QzuUWTaAs/edit?gid=1603648333#gid=1603648333"
-    sheet_url = st.sidebar.text_input("Google Sheet URL", value=default_sheet_url)
-    
-    if st.sidebar.button("Load Google Sheets Data"):
-        try:
-            if "/d/" in sheet_url:
-                sheet_id = sheet_url.split("/d/")[1].split("/")[0]
-            else:
-                sheet_id = sheet_url
-                
-            url_pm = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=P.M.+Report"
-            url_cm = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=C.M.+Report"
-            
-            df_prev_raw = pd.read_csv(url_pm)
-            df_curr_raw = pd.read_csv(url_cm)
-            
-            st.session_state["df_prev_raw"] = df_prev_raw
-            st.session_state["df_curr_raw"] = df_curr_raw
-            st.sidebar.success("Google Sheets loaded successfully!")
-        except Exception as e:
-            st.error(f"Error connecting to Google Sheets: {e}")
-            st.stop()
-    elif "df_prev_raw" in st.session_state and "df_curr_raw" in st.session_state:
-        df_prev_raw = st.session_state["df_prev_raw"]
-        df_curr_raw = st.session_state["df_curr_raw"]
-
 if st.sidebar.button("Logout"):
     st.session_state["logged_in"] = False
     st.rerun()
 
 if df_prev_raw is None or df_curr_raw is None:
-    st.info("💡 Please upload both previous and current month files or load the Google Sheets data from the sidebar.")
+    st.info("💡 Please ensure local files exist in the project folder or upload both previous and current month files from the sidebar.")
     st.stop()
 
 # --- STEP 2: ROBUST DATA CLEANING & VALIDATION ---
