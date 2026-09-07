@@ -217,15 +217,15 @@ st.markdown("Upload your comparative monthly files (Excel or CSV) or connect to 
 
 # --- HELPER FUNCTION: UNIVERSAL FILE READER ---
 def load_data_file(uploaded_file):
-    """Dynamically reads Excel (.xlsx, .xls) and CSV files"""
+    """Dynamically reads Excel (.xlsx, .xls) and large CSV files"""
     if uploaded_file is not None:
         file_name = uploaded_file.name.lower()
         if file_name.endswith('.csv'):
             try:
-                return pd.read_csv(uploaded_file, encoding='utf-8')
-            except UnicodeDecodeError:
+                return pd.read_csv(uploaded_file, encoding='utf-8', low_memory=False)
+            except (UnicodeDecodeError, Exception):
                 uploaded_file.seek(0)
-                return pd.read_csv(uploaded_file, encoding='latin1')
+                return pd.read_csv(uploaded_file, encoding='latin1', low_memory=False)
         else:
             return pd.read_excel(uploaded_file)
     return None
@@ -241,8 +241,8 @@ df_prev_raw = None
 df_curr_raw = None
 
 if data_source == "Upload Files (Excel / CSV)":
-    prev_file = st.sidebar.file_uploader("Upload PREVIOUS MONTH file", type=["xlsx", "xls", "csv"])
-    curr_file = st.sidebar.file_uploader("Upload CURRENT MONTH file", type=["xlsx", "xls", "csv"])
+    prev_file = st.sidebar.file_uploader("Upload PREVIOUS MONTH file", type=["xlsx", "xls", "csv"], max_upload_size=500)
+    curr_file = st.sidebar.file_uploader("Upload CURRENT MONTH file", type=["xlsx", "xls", "csv"], max_upload_size=500)
     
     if prev_file and curr_file:
         try:
@@ -658,7 +658,9 @@ if not lost_summary.empty:
     accounts_lost = int(max_lost_row["Lost_Count"])
     lost_balance_real = max_lost_row["Lost_Balance_Current"]
 else:
-    lost_analyst, accounts_lost, lost_balance_real = "N/A", 0, 0
+    lost_analyst = "N/A"
+    accounts_lost = 0
+    lost_balance_real = 0
 
 col_summary, col_notes = st.columns([2, 1])
 
