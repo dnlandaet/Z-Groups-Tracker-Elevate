@@ -217,20 +217,15 @@ st.markdown("Upload your comparative monthly files (Excel or CSV) or connect to 
 
 # --- HELPER FUNCTION: UNIVERSAL FILE READER ---
 def load_data_file(uploaded_file):
-    """Dynamically reads Excel (.xlsx, .xls) and large CSV files safely"""
+    """Dynamically reads Excel (.xlsx, .xls) and CSV files"""
     if uploaded_file is not None:
         file_name = uploaded_file.name.lower()
         if file_name.endswith('.csv'):
             try:
-                return pd.read_csv(uploaded_file, encoding='utf-8', low_memory=False)
-            except Exception:
+                return pd.read_csv(uploaded_file, encoding='utf-8')
+            except UnicodeDecodeError:
                 uploaded_file.seek(0)
-                try:
-                    return pd.read_csv(uploaded_file, encoding='latin1', low_memory=False)
-                except Exception:
-                    uploaded_file.seek(0)
-                    chunks = pd.read_csv(uploaded_file, encoding='latin1', chunksize=10000, low_memory=False)
-                    return pd.concat(chunks, ignore_index=True)
+                return pd.read_csv(uploaded_file, encoding='latin1')
         else:
             return pd.read_excel(uploaded_file)
     return None
@@ -670,18 +665,24 @@ else:
 col_summary, col_notes = st.columns([2, 1])
 
 with col_summary:
-    summary_text = f"""* **Workload Leader:** **{top_vol_analyst}** manages the highest volume of active clients with **{top_vol_count:,}** accounts.
+    summary_text = f"""
+* **Workload Leader:** **{top_vol_analyst}** manages the highest volume of active clients with **{top_vol_count:,}** accounts.
 * **Risk Exposure Leader:** **{top_exp_analyst}** holds the highest portfolio risk exposure totaling **${top_exp_balance:,.2f}** in Total Balance.
 """
     
     if accounts_lost > 0:
-        summary_text += f"* **Highest Account Reduction:** **{lost_analyst}** had **{accounts_lost}** accounts removed from their portfolio in **{report_period_str}**, representing **${lost_balance_real:,.2f}** in Total Balance (based on current month values).\n"
+        summary_text += f"""
+* **Highest Account Reduction:** **{lost_analyst}** had **{accounts_lost}** accounts removed from their portfolio in **{report_period_str}**, representing **${lost_balance_real:,.2f}** in Total Balance (based on current month values).
+"""
     else:
-        summary_text += f"* **Highest Account Reduction:** No active analysts experienced account removals in **{report_period_str}**.\n"
+        summary_text += f"""
+* **Highest Account Reduction:** No active analysts experienced account removals in **{report_period_str}**.
+"""
 
-    summary_text += f"""* **New Clients Added:** Identified **{new_accounts_count}** brand-new client accounts in **{report_period_str}**, representing **${new_accounts_balance:,.2f}** in open balance.
-* **Unassigned Portfolio:** There are **{unassigned_count}** unassigned accounts missing both Z-Group and Credit Analyst, representing **${unassigned_balance_sum:,.2f}**."""
-    
+    summary_text += f"""
+* **New Clients Added:** Identified **{new_accounts_count}** brand-new client accounts in **{report_period_str}**, representing **${new_accounts_balance:,.2f}** in open balance.
+* **Unassigned Portfolio:** There are **{unassigned_count}** unassigned accounts missing both Z-Group and Credit Analyst, representing **${unassigned_balance_sum:,.2f}**.
+"""
     st.markdown(summary_text)
 
 with col_notes:
