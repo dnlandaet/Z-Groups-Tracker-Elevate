@@ -213,7 +213,7 @@ report_period_str = f"{selected_month} {selected_year}"
 
 # Badge de Periodo Estilizado
 st.markdown(f'<div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>', unsafe_allow_html=True)
-st.markdown("Upload your comparative monthly files (Excel or CSV) or connect to local files to track analyst changes and overall portfolio movement.")
+st.markdown("Upload your comparative monthly files (Excel or CSV) or connect to Google Sheets to track analyst changes and overall portfolio movement.")
 
 # --- HELPER FUNCTION: UNIVERSAL FILE READER ---
 def load_data_file(uploaded_file):
@@ -222,10 +222,10 @@ def load_data_file(uploaded_file):
         file_name = uploaded_file.name.lower()
         if file_name.endswith('.csv'):
             try:
-                return pd.read_csv(uploaded_file, encoding='utf-8', low_memory=False)
+                return pd.read_csv(uploaded_file, encoding='utf-8')
             except UnicodeDecodeError:
                 uploaded_file.seek(0)
-                return pd.read_csv(uploaded_file, encoding='latin1', low_memory=False)
+                return pd.read_csv(uploaded_file, encoding='latin1')
         else:
             return pd.read_excel(uploaded_file)
     return None
@@ -234,28 +234,13 @@ def load_data_file(uploaded_file):
 st.sidebar.header("Data Source Selection")
 data_source = st.sidebar.radio(
     "Choose Data Source:",
-    ("📁 Local Files (Fastest - No Upload)", "Upload Files (Excel / CSV)")
+    ("Upload Files (Excel / CSV)", "Connect Google Sheets")
 )
 
 df_prev_raw = None
 df_curr_raw = None
 
-if data_source == "📁 Local Files (Fastest - No Upload)":
-    st.sidebar.subheader("Local Files Detection")
-    prev_path = "prev_month.csv"
-    curr_path = "curr_month.csv"
-    
-    if os.path.exists(prev_path) and os.path.exists(curr_path):
-        try:
-            df_prev_raw = pd.read_csv(prev_path, encoding='latin1', low_memory=False)
-            df_curr_raw = pd.read_csv(curr_path, encoding='latin1', low_memory=False)
-            st.sidebar.success("Local files loaded successfully!")
-        except Exception as e:
-            st.sidebar.error(f"Error loading local files: {e}")
-    else:
-        st.sidebar.warning("⚠️ Make sure 'prev_month.csv' and 'curr_month.csv' exist in your project folder.")
-
-else:
+if data_source == "Upload Files (Excel / CSV)":
     prev_file = st.sidebar.file_uploader("Upload PREVIOUS MONTH file", type=["xlsx", "xls", "csv"])
     curr_file = st.sidebar.file_uploader("Upload CURRENT MONTH file", type=["xlsx", "xls", "csv"])
     
@@ -267,12 +252,39 @@ else:
             st.error(f"Error reading uploaded files: {e}")
             st.stop()
 
+else:
+    default_sheet_url = "https://docs.google.com/spreadsheets/d/1HmShbAOnElJOQ9qy0lvYkxL6qxS7dc2xl9QzuUWTaAs/edit?gid=1603648333#gid=1603648333"
+    sheet_url = st.sidebar.text_input("Google Sheet URL", value=default_sheet_url)
+    
+    if st.sidebar.button("Load Google Sheets Data"):
+        try:
+            if "/d/" in sheet_url:
+                sheet_id = sheet_url.split("/d/")[1].split("/")[0]
+            else:
+                sheet_id = sheet_url
+                
+            url_pm = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=P.M.+Report"
+            url_cm = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=C.M.+Report"
+            
+            df_prev_raw = pd.read_csv(url_pm)
+            df_curr_raw = pd.read_csv(url_cm)
+            
+            st.session_state["df_prev_raw"] = df_prev_raw
+            st.session_state["df_curr_raw"] = df_curr_raw
+            st.sidebar.success("Google Sheets loaded successfully!")
+        except Exception as e:
+            st.error(f"Error connecting to Google Sheets: {e}")
+            st.stop()
+    elif "df_prev_raw" in st.session_state and "df_curr_raw" in st.session_state:
+        df_prev_raw = st.session_state["df_prev_raw"]
+        df_curr_raw = st.session_state["df_curr_raw"]
+
 if st.sidebar.button("Logout"):
     st.session_state["logged_in"] = False
     st.rerun()
 
 if df_prev_raw is None or df_curr_raw is None:
-    st.info("💡 Please ensure local files exist in the project folder or upload both previous and current month files from the sidebar.")
+    st.info("💡 Please upload both previous and current month files or load the Google Sheets data from the sidebar.")
     st.stop()
 
 # --- STEP 2: ROBUST DATA CLEANING & VALIDATION ---
@@ -646,31 +658,29 @@ if not lost_summary.empty:
     accounts_lost = int(max_lost_row["Lost_Count"])
     lost_balance_real = max_lost_row["Lost_Balance_Current"]
 else:
-    lost_analyst = "N/A"
-    accounts_lost = 0
-    lost_balance_real = 0
+    lost_analyst, accounts_lost, lost_balance_real = "N/A", 0, 0
 
 col_summary, col_notes = st.columns([2, 1])
 
 with col_summary:
     summary_text = f"""
-* **Workload Leader:** **{top_vol_analyst}** manages the highest volume of active clients with **{top_vol_count:,}** accounts.
-* **Risk Exposure Leader:** **{top_exp_analyst}** holds the highest portfolio risk exposure totaling **${top_exp_balance:,.2f}** in Total Balance.
-"""
+    * **Workload Leader:** **{top_vol_analyst}** manages the highest volume of active clients with **{top_vol_count:,}** accounts.
+    * **Risk Exposure Leader:** **{top_exp_analyst}** holds the highest portfolio risk exposure totaling **${top_exp_balance:,.2f}** in Total Balance.
+    """
     
     if accounts_lost > 0:
         summary_text += f"""
-* **Highest Account Reduction:** **{lost_analyst}** had **{accounts_lost}** accounts removed from their portfolio in **{report_period_str}**, representing **${lost_balance_real:,.2f}** in Total Balance (based on current month values).
-"""
+    * **Highest Account Reduction:** **{lost_analyst}** had **{accounts_lost}** accounts removed from their portfolio in **{report_period_str}**, representing **${lost_balance_real:,.2f}** in Total Balance (based on current month values).
+        """
     else:
         summary_text += f"""
-* **Highest Account Reduction:** No active analysts experienced account removals in **{report_period_str}**.
-"""
+    * **Highest Account Reduction:** No active analysts experienced account removals in **{report_period_str}**.
+        """
 
     summary_text += f"""
-* **New Clients Added:** Identified **{new_accounts_count}** brand-new client accounts in **{report_period_str}**, representing **${new_accounts_balance:,.2f}** in open balance.
-* **Unassigned Portfolio:** There are **{unassigned_count}** unassigned accounts missing both Z-Group and Credit Analyst, representing **${unassigned_balance_sum:,.2f}**.
-"""
+    * **New Clients Added:** Identified **{new_accounts_count}** brand-new client accounts in **{report_period_str}**, representing **${new_accounts_balance:,.2f}** in open balance.
+    * **Unassigned Portfolio:** There are **{unassigned_count}** unassigned accounts missing both Z-Group and Credit Analyst, representing **${unassigned_balance_sum:,.2f}**.
+    """
     st.markdown(summary_text)
 
 with col_notes:
