@@ -13,7 +13,11 @@ st.set_page_config(
     layout="wide"
 )
 
+<<<<<<< HEAD
 # --- 2. MODERN LIGHT UI (AZUL CORPORATIVO AMRIZE) ---
+=======
+# 2. Modern Light UI - TODAS LAS ALERTAS FORZADAS EN AZUL CORPORATIVO SUAVE
+>>>>>>> a93cf8d8dbcaf7b8517c713f2fcdbad395926d00
 st.markdown("""
     <style>
     /* Global App Light Background */
