@@ -1,17 +1,19 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import os
 import re
+import gc
 from datetime import datetime
 
-# 1. Page Configuration
+# --- 1. PAGE CONFIGURATION ---
 st.set_page_config(
     page_title="Amrize - Z-Groups Tracker Elevate",
     page_icon="📊",
     layout="wide"
 )
 
-# 2. Modern Light UI / Corporate Amrize Design
+# --- 2. MODERN LIGHT UI (AZUL CORPORATIVO AMRIZE) ---
 st.markdown("""
     <style>
     /* Global App Light Background */
@@ -39,37 +41,48 @@ st.markdown("""
         color: #ffffff !important;
     }
     
-    /* Metric Cards Modern Light UI */
+    /* METRIC CARDS - UN SOLO BLOQUE AZUL CLARITO (#f0f5ff) CON ALTURA FIJA (140px) */
     div[data-testid="stMetric"] {
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
-        border-left: 5px solid #0284c7 !important;
-        padding: 18px 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-        min-height: 135px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        background-color: #f0f5ff !important;
+        border: 1px solid #dbeafe !important;
+        border-left: 6px solid #2563eb !important;
+        padding: 20px !important;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+        height: 140px !important;
+        min-height: 140px !important;
+        max-height: 140px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        box-sizing: border-box !important;
     }
+
+    div[data-testid="stMetric"] > div {
+        background-color: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+    
     div[data-testid="stMetric"]:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 15px -3px rgba(1, 30, 106, 0.1);
-        border-color: #cbd5e1;
+        box-shadow: 0 10px 15px -3px rgba(1, 30, 106, 0.12) !important;
+        border-color: #93c5fd !important;
     }
+
     div[data-testid="stMetricValue"] {
-        color: #011e6a !important;
-        font-weight: 800;
+        color: #001fbe !important;
+        font-weight: 800 !important;
         font-size: 30px !important;
         word-break: break-all;
     }
+
     div[data-testid="stMetricLabel"] {
-        color: #64748b !important;
-        font-size: 13px;
+        color: #334155 !important;
+        font-size: 13px !important;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        font-weight: 600;
+        font-weight: 600 !important;
     }
     
     /* Table & Dataframe Modern Styling */
@@ -81,13 +94,19 @@ st.markdown("""
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
 
-    /* Info & Alert Styling Override */
-    .stAlert {
-        background-color: #f0fdf4 !important;
-        border: 1px solid #bbf7d0 !important;
-        border-left: 5px solid #16a34a !important;
-        color: #166534 !important;
-        border-radius: 10px;
+    /* FORZAR TODAS LAS ALERTAS (INFO, WARNING, SUCCESS) A AZUL SUAVE Y AZUL OSCURO EN TEXTO */
+    .stAlert, 
+    div[data-testid="stAlert"] {
+        background-color: #e0f2fe !important;
+        border: 1px solid #7dd3fc !important;
+        border-left: 6px solid #0284c7 !important;
+        color: #0369a1 !important;
+        border-radius: 10px !important;
+    }
+    .stAlert p, .stAlert span, .stAlert div, 
+    div[data-testid="stAlert"] p, div[data-testid="stAlert"] span, div[data-testid="stAlert"] div {
+        color: #0369a1 !important;
+        font-weight: 600 !important;
     }
     
     /* Horizontal Dividers */
@@ -194,21 +213,23 @@ selected_year = st.sidebar.selectbox("Report Year", options=years_list, index=ye
 
 report_period_str = f"{selected_month} {selected_year}"
 
-# Badge de Periodo Estilizado en Fondo Claro
+# Badge de Periodo Estilizado
 st.markdown(f'<div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>', unsafe_allow_html=True)
 st.markdown("Upload your comparative monthly files (Excel or CSV) or connect to Google Sheets to track analyst changes and overall portfolio movement.")
 
-# --- HELPER FUNCTION: UNIVERSAL FILE READER ---
+# --- HELPER FUNCTIONS OPTIMIZADAS EN MEMORIA ---
+@st.cache_data(show_spinner=False, max_entries=2)
 def load_data_file(uploaded_file):
-    """Dynamically reads Excel (.xlsx, .xls) and CSV files"""
+    """Dynamically reads Excel (.xlsx, .xls) and CSV files with low memory footprint"""
     if uploaded_file is not None:
-        file_name = uploaded_file.name.lower()
+        file_name = uploaded_file.name.lower() if hasattr(uploaded_file, 'name') else str(uploaded_file).lower()
         if file_name.endswith('.csv'):
             try:
-                return pd.read_csv(uploaded_file, encoding='utf-8')
+                return pd.read_csv(uploaded_file, encoding='utf-8', low_memory=False)
             except UnicodeDecodeError:
-                uploaded_file.seek(0)
-                return pd.read_csv(uploaded_file, encoding='latin1')
+                if hasattr(uploaded_file, 'seek'):
+                    uploaded_file.seek(0)
+                return pd.read_csv(uploaded_file, encoding='latin1', low_memory=False)
         else:
             return pd.read_excel(uploaded_file)
     return None
@@ -249,8 +270,8 @@ else:
             url_pm = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=P.M.+Report"
             url_cm = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=C.M.+Report"
             
-            df_prev_raw = pd.read_csv(url_pm)
-            df_curr_raw = pd.read_csv(url_cm)
+            df_prev_raw = pd.read_csv(url_pm, low_memory=False)
+            df_curr_raw = pd.read_csv(url_cm, low_memory=False)
             
             st.session_state["df_prev_raw"] = df_prev_raw
             st.session_state["df_curr_raw"] = df_curr_raw
@@ -291,13 +312,13 @@ if missing_prev or missing_curr:
     st.stop()
 
 def clean_currency_series(series):
-    return pd.to_numeric(
-        series.astype(str)
-        .str.replace(r'[\$,]', '', regex=True)
-        .str.strip(),
-        errors='coerce'
-    ).fillna(0)
+    """Safely converts string currencies to float32 without crashing RAM."""
+    if series is None:
+        return pd.Series(dtype='float32')
+    s_clean = series.astype(str).str.replace(r'[\$,]', '', regex=True).str.strip()
+    return pd.to_numeric(s_clean, errors='coerce').fillna(0.0).astype('float32')
 
+@st.cache_data(show_spinner=False, max_entries=2)
 def clean_data(df):
     df_clean = df.copy()
     
@@ -308,7 +329,7 @@ def clean_data(df):
     df_clean["Customer"] = (
         pd.to_numeric(df_clean["Customer"].astype(str).str.replace(r'\.0$', '', regex=True), errors='coerce')
         .fillna(0)
-        .astype(int)
+        .astype(np.int64)
         .astype(str)
     )
     
@@ -324,6 +345,10 @@ def clean_data(df):
 
 df_prev_global = clean_data(df_prev_raw)
 df_curr_global = clean_data(df_curr_raw)
+
+# Liberar memoria de dataframes pesados que ya no se usan
+del df_prev_raw, df_curr_raw
+gc.collect()
 
 # --- STEP 3: GENERAL PORTFOLIO SUMMARY ---
 prev_active_accounts = df_prev_global[df_prev_global["Status"].str.upper() == "ACTIVE"]
@@ -435,7 +460,7 @@ if not df_analyst_changes.empty:
         f"representing **${transferred_balance:,.2f}** in Total Balance and **${transferred_past_due:,.2f}** in Total Past Due."
     )
 else:
-    st.success(f"✅ No credit analyst assignment transitions were detected between valid analysts for {report_period_str}.")
+    st.info(f"✅ No credit analyst assignment transitions were detected between valid analysts for {report_period_str}.")
 
 st.write("---")
 
@@ -469,7 +494,7 @@ if not df_new_accounts.empty:
         f"New Accounts Impact: Identified {new_accounts_count} new open AR accounts in {report_period_str} with a combined balance of ${new_accounts_balance:,.2f}."
     )
 else:
-    st.success(f"No new open AR accounts were identified for {report_period_str}.")
+    st.info(f"No new open AR accounts were identified for {report_period_str}.")
 
 st.write("---")
 
@@ -511,12 +536,12 @@ if not df_unassigned.empty:
     )
 
     unassigned_balance_sum = df_unassigned["Total Balance"].sum()
-    st.warning(
+    st.info(
         f"Total Exposure Unassigned: There are {unassigned_count} accounts in {report_period_str} with open balance missing BOTH Z-Group and Credit Analyst, "
         f"representing a total of ${unassigned_balance_sum:,.2f}."
     )
 else:
-    st.success(f"Great! No active open-balance accounts were found with both Z-Group and Credit Analyst empty in {report_period_str}.")
+    st.info(f"Great! No active open-balance accounts were found with both Z-Group and Credit Analyst empty in {report_period_str}.")
 
 st.write("---")
 
@@ -668,9 +693,9 @@ with col_summary:
 
 with col_notes:
     if unassigned_count > 0:
-        st.warning(
+        st.info(
             f"⚠️ **Action Required:** We recommend reviewing and assigning analyst ownership to the **{unassigned_count} unassigned accounts** "
             f"as soon as possible to mitigate financial exposure of **${unassigned_balance_sum:,.2f}** for **{report_period_str}**."
         )
     else:
-        st.success(f"✅ **Outstanding:** All active open-balance accounts have assigned analysts in {report_period_str}. Zero unattended balance detected.")
+        st.info(f"✅ **Outstanding:** All active open-balance accounts have assigned analysts in {report_period_str}. Zero unattended balance detected.")
