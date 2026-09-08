@@ -366,6 +366,7 @@ if not df_analyst_changes.empty:
     transferred_count = len(df_analyst_changes)
     st.info(f"💰 **Financial Impact of Assignments:** Identified **{transferred_count}** accounts transferred between valid analysts for {report_period_str}, representing **${transferred_balance:,.2f}** in Total Balance and **${transferred_past_due:,.2f}** in Total Past Due.")
 else:
+    df_changes_formatted = pd.DataFrame()
     st.info(f"✅ No credit analyst assignment transitions were detected between valid analysts for {report_period_str}.")
 
 st.write("---")
@@ -391,6 +392,7 @@ if not df_new_accounts.empty:
     )
     st.info(f"New Accounts Impact: Identified {new_accounts_count} new open AR accounts in {report_period_str} with a combined balance of ${new_accounts_balance:,.2f}.")
 else:
+    df_new_formatted = pd.DataFrame()
     st.info(f"No new open AR accounts were identified for {report_period_str}.")
 
 st.write("---")
@@ -414,6 +416,7 @@ if not df_unassigned.empty:
     st.dataframe(df_unassigned_formatted.style.format({"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"}), use_container_width=True)
     st.info(f"Total Exposure Unassigned: There are {unassigned_count} accounts in {report_period_str} with open balance missing BOTH Z-Group and Credit Analyst, representing a total of ${unassigned_balance_sum:,.2f}.")
 else:
+    df_unassigned_formatted = pd.DataFrame()
     st.info(f"Great! No active open-balance accounts were found with both Z-Group and Credit Analyst empty in {report_period_str}.")
 
 st.write("---")
@@ -520,11 +523,12 @@ with col_notes:
         st.info(f"⚠️ **Action Required:** We recommend reviewing and assigning analyst ownership to the **{unassigned_count} unassigned accounts** as soon as possible to mitigate financial exposure of **${unassigned_balance_sum:,.2f}** for **{report_period_str}**.")
     else:
         st.info(f"✅ **Outstanding:** All active open-balance accounts have assigned analysts in {report_period_str}. Zero unattended balance detected.")
-        # --- EXACT HTML EXPORT FUNCTIONALITY ---
+
+# --- LAZY HTML EXPORT (GENERA EL HTML ÚNICAMENTE AL HACER CLIC) ---
 st.write("---")
 st.subheader("📥 Export & Download Report")
 
-def generate_html_report():
+def build_html_report_data():
     html_transitions = f'<div class="table-scroll-container">{df_changes_formatted.style.format({"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"}).to_html(index=False, classes="dataframe styled-table")}</div>' if not df_analyst_changes.empty else f'<div class="alert-box">✅ No credit analyst assignment transitions were detected between valid analysts for {report_period_str}.</div>'
 
     html_new_accounts = f'<div class="table-scroll-container">{df_new_formatted.style.format({"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"}).to_html(index=False, classes="dataframe styled-table")}</div>' if not df_new_accounts.empty else f'<div class="alert-box">No new open AR accounts were identified for {report_period_str}.</div>'
@@ -533,7 +537,7 @@ def generate_html_report():
 
     html_distribution = f'<div class="table-scroll-container">{df_dist_final.style.format({"Prev Accounts (All)": "{:,.0f}", "Curr Accounts (All)": "{:,.0f}", "Prev Acc Open AR": "{:,.0f}", "Curr Acc Open AR": "{:,.0f}", "Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"}).to_html(index=False, classes="dataframe styled-table")}</div>'
 
-    html_content = f"""<!DOCTYPE html>
+    return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -611,7 +615,7 @@ def generate_html_report():
 </head>
 <body>
     <div class="header">
-        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgNS42NyAxMjYuMDIgMjIuNDIiPgogIDxnIGNsaXAtcGF0aD0idXJsKCNhKSI+CiAgICA8ZyBjbGlwLXBhdGg9InVybCgjYikiPgogICAgICA8ZyBjbGlwLXBhdGg9InVybCgjYykiPgogICAgICAgIDxwYXRoIGZpbGw9IiMwMTFFNkEiIGQ9Ik00MC45MSAxMy4xNDNoNS4yNjVsNi4yODggMTQuOTI4aC00LjMxbC0xLjA2MS0yLjY0NGgtNy4wODhsLTEuMDYyIDIuNjQ0aC00LjMxem00LjY5NCA4LjU5OC0yLjA2Mi01LjExMi0yLjA2MSA1LjExMnptMTQuMDc3LTguNTk4IDMuMDgxIDguMTI1IDMuMDgyLTguMTI1aDUuNzg3djE0LjkyOEg2Ny44di05Ljg2OWwtNC4zNDUgOS44NjloLTEuMzg3bC00LjM0NS05Ljg2OXY5Ljg2OWgtMy44MzFWMTMuMTQzem0yMy44OTUgMGMzLjUzIDAgNS4yMjYgMi4zNDMgNS4yMjYgNS4wNiAwIDIuMTQ1LTEuMDkzIDQuMDgtMy4xMTIgNC45NDVsMi45MTQgNC45MjNoLTQuNjExbC0yLjYxMy00LjQ4NmgtMi44MzN2NC40ODZoLTMuOTQzVjEzLjE0M3ptLS42NDcgNi44NmMxLjE0NiAw IDEuODg0LS42MjUgMS44ODQtMS42NTVzLS43Ni0xLjUyMS0xLjcyOC0xLjUyMWgtNC41Mzh2My4xNzV6bTguMTcyLTYuODZoMy45NTZ2MTQuOTI4aC0zLjk1NnptNi4zNDUgM1ptMTQuMDc3LTguNTk4IDMuMDgxIDguMTI1IDMuMDgyLTguMTI1aDUuNzg3djE0LjkyOEg2Ny44di05Ljg2OWwtNC4zNDUgOS44NjloLTEuMzg3bC00LjM0NS05Ljg2OXY5Ljg2OWgtMy44MzFWMTMuMTQzem0yMy44OTUgMGMzLjUzIDAgNS4yMjYgMi4zNDMgNS4yMjYgNS4wNiAwIDIuMTQ1LTEuMDkzIDQuMDgtMy4xMTIgNC45NDVsMi45MTQgNC45MjNoLTQuNjExbC0yLjYxMy00LjQ4NmgtMi44MzN2NC40ODZoLTMuOTQzVjEzLjE0M3ptLS42NDcgNi44NmMxLjE0NiAw IDEuODg0LS42MjUgMS44ODQtMS42NTVzLS43Ni0xLjUyMS0xLjcyOC0xLjUyMWgtNC41Mzh2My4xNzV6bTguMTcyLTYuODZoMy45NTZ2MTQuOTI4aC0zLjk1NnptNi4zNDUgMTEuMjg2IDguMjI0LTcuNmgtOC4xNnYtMy42ODZoMTMuODc1djMuNlh0LTguMjI1IDcuNjYyaDguMzM5djMuNjg2SDk3LjQ0NnYtMy42NDR6bTE2LjM4NS0xMS4yODZIMTI2djMuNjg2aC04LjIxM3YxLjcyN2g3LjZ2My42NzVoLTcuNnYyLjE1NEgxMjZ2My42ODZoLTEyLjE2OXpNMjkuNjU2IDI4LjA3aC05Ljk3OGwtMS4zNzItNC4yMiA4LjExNi01Ljczek03LjI3NiA1LjY4IDAgMjgwMmhkOS45NzhsNC44NS0xNC45MjcgMS42MTcgNC45NzZoOS45NzdMMjIuMzggNS42OHoiLz4KICAgIDwvZz4KICAgIDwvZz4KICAgIDwvZz4KPC9zdmc+" alt="AMRIZE Logo" style="height: 48px; margin-bottom: 12px;">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgNS42NyAxMjYuMDIgMjIuNDIiPgogIDxnIGNsaXAtcGF0aD0idXJsKCNhKSI+CiAgICA8ZyBjbGlwLXBhdGg9InVybCgjYikiPgogICAgICA8ZyBjbGlwLXBhdGg9InVybCgjYykiPgogICAgICAgIDxwYXRoIGZpbGw9IiMwMTFFNkEiIGQ9Ik00MC45MSAxMy4xNDNoNS4yNjVsNi4yODggMTQuOTI4aC00LjMxbC0xLjA2MS0yLjY0NGgtNy4wODhsLTEuMDYyIDIuNjQ0aC00LjMxem00LjY5NCA4LjU5OC0yLjA2Mi01LjExMi0yLjA2MSA1LjExMnptMTQuMDc3LTguNTk4IDMuMDgxIDguMTI1IDMuMDgyLTguMTI1aDUuNzg3djE0LjkyOEg2Ny44di05Ljg2OWwtNC4zNDUgOS44NjloLTEuMzg3bC00LjM0NS05Ljg2OXY5Ljg2OWgtMy44MzFWMTMuMTQzem0yMy44OTUgMGMz\.53IDAgNS4yMjYgMi4zNDMgNS4yMjYgNS4wNiAwIDIuMTQ1LTEuMDkzIDQuMDgtMy4xMTIgNC45NDVsMi45MTQgNC45MjNoLTQuNjExbC0yLjYxMy00LjQ4NmgtMi44MzN2NC40ODZoLTMuOTQzVjEzLjE0M3ptLS42NDcgNi44NmMxLjE0NiAw IDEuODg0LS42MjUgMS44ODQtMS42NTVzLS43Ni0xLjUyMS0xLjcyOC0xLjUyMWgtNC41Mzh2My4xNzV6bTguMTcyLTYuODZoMy45NTZ2MTQuOTI4aC0zLjk1NnptNi4zNDUgMTEuMjg2IDguMjI0LTcuNmgtOC4xNnYtMy42ODZoMTMuODc1djMuNlh0LTguMjI1IDcuNjYyaDguMzM5djMuNjg2SDk3LjQ0NnYtMy42NDR6bTE2LjM4NS0xMS4yODZIMTI2djMuNjg2aC04LjIxM3YxLjcyN2g3LjZ2My42NzVoLTcuNnYyLjE1NEgxMjZ2My42ODZoLTEyLjE2OXpNMjkuNjU2IDI4LjA3aC05Ljk3OGwtMS4zNzItNC4yMiA4LjExNi01Ljczek03LjI3NiA1LjY4IDAgMjgwMmhkOS45NzhsNC44NS0xNC45MjcgMS42MTcgNC45NzZoOS45NzdMMjIuMzggNS42OHoiLz4KICAgIDwvZz4KICAgIDwvZz4KICAgIDwvZz4KPC9zdmc+" alt="AMRIZE Logo" style="height: 48px; margin-bottom: 12px;">
         <div class="title">Z-Groups Tracker Elevate</div>
         <div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>
     </div>
@@ -681,11 +685,10 @@ def generate_html_report():
     </script>
 </body>
 </html>"""
-    return html_content
 
 st.download_button(
     label="📄 Download Report as HTML",
-    data=generate_html_report(),
+    data=build_html_report_data,
     file_name=f"Z_Groups_Report_{selected_month}_{selected_year}.html",
     mime="text/html"
 )
