@@ -699,3 +699,65 @@ with col_notes:
         )
     else:
         st.info(f"✅ **Outstanding:** All active open-balance accounts have assigned analysts in {report_period_str}. Zero unattended balance detected.")
+
+st.write("---")
+
+# --- HTML EXPORT FUNCTIONALITY ---
+st.subheader("📥 Export & Download Report")
+
+def generate_html_report():
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Amrize Report - {report_period_str}</title>
+        <style>
+            body {{ font-family: 'Arial', sans-serif; background-color: #f8fafc; color: #1e293b; padding: 30px; }}
+            h1 {{ color: #011e6a; border-bottom: 2px solid #0284c7; padding-bottom: 10px; }}
+            h2 {{ color: #0284c7; margin-top: 25px; }}
+            .badge {{ background-color: #e0f2fe; color: #0369a1; padding: 6px 12px; border-radius: 6px; font-weight: bold; inline-block; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; background: white; }}
+            th, td {{ border: 1px solid #cbd5e1; padding: 10px; text-align: left; font-size: 13px; }}
+            th {{ background-color: #011e6a; color: white; }}
+            tr:nth-child(even) {{ background-color: #f1f5f9; }}
+            .summary-box {{ background-color: #e0f2fe; border-left: 5px solid #0284c7; padding: 15px; margin-top: 20px; border-radius: 6px; }}
+        </style>
+    </head>
+    <body>
+        <h1>Amrize - Z-Groups Tracker Elevate</h1>
+        <p class="badge">Active Report Period: {report_period_str}</p>
+        
+        <h2>📌 Executive Summary</h2>
+        <div class="summary-box">
+            <ul>
+                <li><strong>Active Accounts:</strong> {curr_active_count:,} ({variation_str_active} vs prev month)</li>
+                <li><strong>Total Active Balance:</strong> ${total_balance_active_curr:,.2f}</li>
+                <li><strong>Workload Leader:</strong> {top_vol_analyst} ({top_vol_count:,} accounts)</li>
+                <li><strong>Risk Exposure Leader:</strong> {top_exp_analyst} (${top_exp_balance:,.2f})</li>
+                <li><strong>New Clients Added:</strong> {new_accounts_count} (${new_accounts_balance:,.2f})</li>
+                <li><strong>Unassigned Accounts:</strong> {unassigned_count} (${unassigned_balance_sum:,.2f})</li>
+            </ul>
+        </div>
+
+        <h2>👥 Analyst Portfolio Distribution</h2>
+        {df_dist_final.to_html(index=False, classes='table')}
+
+        <h2>🔄 Credit Analyst Transitions</h2>
+        {df_changes_formatted.to_html(index=False, classes='table') if not df_analyst_changes.empty else '<p>No transitions detected.</p>'}
+
+        <h2>✨ New Accounts of the Month</h2>
+        {df_new_formatted.to_html(index=False, classes='table') if not df_new_accounts.empty else '<p>No new accounts detected.</p>'}
+    </body>
+    </html>
+    """
+    return html_content
+
+html_data = generate_html_report()
+
+st.download_button(
+    label="📄 Download Report as HTML",
+    data=html_data,
+    file_name=f"Amrize_ZGroups_Report_{selected_month}_{selected_year}.html",
+    mime="text/html"
+)
