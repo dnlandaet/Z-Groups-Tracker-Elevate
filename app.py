@@ -6,18 +6,14 @@ import re
 import gc
 from datetime import datetime
 
-# --- 1. PAGE CONFIGURATION ---
+# 1. Page Configuration
 st.set_page_config(
     page_title="Amrize - Z-Groups Tracker Elevate",
     page_icon="📊",
     layout="wide"
 )
 
-<<<<<<< HEAD
-# --- 2. MODERN LIGHT UI (AZUL CORPORATIVO AMRIZE) ---
-=======
 # 2. Modern Light UI - TODAS LAS ALERTAS FORZADAS EN AZUL CORPORATIVO SUAVE
->>>>>>> a93cf8d8dbcaf7b8517c713f2fcdbad395926d00
 st.markdown("""
     <style>
     /* Global App Light Background */
@@ -221,10 +217,10 @@ report_period_str = f"{selected_month} {selected_year}"
 st.markdown(f'<div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>', unsafe_allow_html=True)
 st.markdown("Upload your comparative monthly files (Excel or CSV) or connect to Google Sheets to track analyst changes and overall portfolio movement.")
 
-# --- HELPER FUNCTIONS OPTIMIZADAS EN MEMORIA ---
+# --- HELPER FUNCTION: UNIVERSAL FILE READER OPTIMIZADO EN RAM ---
 @st.cache_data(show_spinner=False, max_entries=2)
 def load_data_file(uploaded_file):
-    """Dynamically reads Excel (.xlsx, .xls) and CSV files with low memory footprint"""
+    """Dynamically reads Excel (.xlsx, .xls) and CSV files with RAM caching"""
     if uploaded_file is not None:
         file_name = uploaded_file.name.lower() if hasattr(uploaded_file, 'name') else str(uploaded_file).lower()
         if file_name.endswith('.csv'):
@@ -316,7 +312,7 @@ if missing_prev or missing_curr:
     st.stop()
 
 def clean_currency_series(series):
-    """Safely converts string currencies to float32 without crashing RAM."""
+    """Converts string currencies to float32 to reduce memory footprint by 50%"""
     if series is None:
         return pd.Series(dtype='float32')
     s_clean = series.astype(str).str.replace(r'[\$,]', '', regex=True).str.strip()
@@ -350,7 +346,7 @@ def clean_data(df):
 df_prev_global = clean_data(df_prev_raw)
 df_curr_global = clean_data(df_curr_raw)
 
-# Liberar memoria de dataframes pesados que ya no se usan
+# Garbage collection to free memory
 del df_prev_raw, df_curr_raw
 gc.collect()
 
