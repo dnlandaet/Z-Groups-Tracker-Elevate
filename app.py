@@ -700,64 +700,189 @@ with col_notes:
     else:
         st.info(f"✅ **Outstanding:** All active open-balance accounts have assigned analysts in {report_period_str}. Zero unattended balance detected.")
 
+# --- HTML EXPORT FUNCTIONALITY (EXACT TEMPLATE FORMATTING) ---
 st.write("---")
-
-# --- HTML EXPORT FUNCTIONALITY ---
 st.subheader("📥 Export & Download Report")
 
 def generate_html_report():
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <title>Amrize Report - {report_period_str}</title>
-        <style>
-            body {{ font-family: 'Arial', sans-serif; background-color: #f8fafc; color: #1e293b; padding: 30px; }}
-            h1 {{ color: #011e6a; border-bottom: 2px solid #0284c7; padding-bottom: 10px; }}
-            h2 {{ color: #0284c7; margin-top: 25px; }}
-            .badge {{ background-color: #e0f2fe; color: #0369a1; padding: 6px 12px; border-radius: 6px; font-weight: bold; inline-block; }}
-            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; background: white; }}
-            th, td {{ border: 1px solid #cbd5e1; padding: 10px; text-align: left; font-size: 13px; }}
-            th {{ background-color: #011e6a; color: white; }}
-            tr:nth-child(even) {{ background-color: #f1f5f9; }}
-            .summary-box {{ background-color: #e0f2fe; border-left: 5px solid #0284c7; padding: 15px; margin-top: 20px; border-radius: 6px; }}
-        </style>
-    </head>
-    <body>
-        <h1>Amrize - Z-Groups Tracker Elevate</h1>
-        <p class="badge">Active Report Period: {report_period_str}</p>
+    # Helper to convert formatted DataFrames into HTML tables or fallback divs
+    if not df_analyst_changes.empty:
+        html_transitions = df_changes_formatted.to_html(index=False, classes='dataframe styled-table')
+    else:
+        html_transitions = f'<div class="alert-box">✅ No credit analyst assignment transitions were detected between valid analysts for {report_period_str}.</div>'
+
+    if not df_new_accounts.empty:
+        html_new_accounts = df_new_formatted.to_html(index=False, classes='dataframe styled-table')
+    else:
+        html_new_accounts = '<p>No new open AR accounts were identified.</p>'
+
+    if not df_unassigned.empty:
+        html_unassigned = df_unassigned_formatted.to_html(index=False, classes='dataframe styled-table')
+    else:
+        html_unassigned = '<p>No unassigned accounts detected.</p>'
+
+    html_distribution = df_dist_final.to_html(index=False, classes='dataframe styled-table')
+
+    html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Amrize - Z-Groups Tracker Elevate ({report_period_str})</title>
+    <style>
+        body {{
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+            margin: 0;
+            padding: 30px;
+        }}
+        .header {{ margin-bottom: 24px; }}
+        .title {{ font-size: 28px; font-weight: 800; color: #011e6a; margin-bottom: 8px; }}
+        .period-badge {{
+            display: inline-block; background: #f0f5ff; color: #011e6a;
+            padding: 8px 18px; border-radius: 20px; font-weight: 600; font-size: 14px;
+            border: 1px solid #93c5fd; margin-bottom: 20px;
+        }}
+        .kpi-container {{ display: flex; gap: 15px; margin-bottom: 30px; }}
+        .kpi-card {{
+            flex: 1; background: #f0f5ff; border: 1px solid #dbeafe;
+            border-left: 6px solid #2563eb; padding: 20px; border-radius: 12px;
+            box-sizing: border-box;
+        }}
+        .kpi-title {{ font-size: 12px; color: #334155; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }}
+        .kpi-value {{ font-size: 28px; font-weight: 800; color: #001fbe; margin-top: 6px; }}
         
-        <h2>📌 Executive Summary</h2>
-        <div class="summary-box">
+        .section-title {{ font-size: 20px; font-weight: 700; color: #011e6a; margin: 30px 0 15px 0; }}
+        .section-desc {{ font-size: 14px; color: #64748b; margin-top: -10px; margin-bottom: 15px; }}
+        
+        .alert-box {{
+            background-color: #e0f2fe;
+            border: 1px solid #7dd3fc;
+            border-left: 6px solid #0284c7;
+            padding: 14px 18px;
+            color: #0369a1;
+            border-radius: 10px;
+            font-weight: 500;
+            font-size: 14px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }}
+        
+        .table-scroll-container {{
+            max-height: 380px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }}
+
+        .styled-table {{
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }}
+        .styled-table th, .styled-table td {{ padding: 12px 16px; text-align: left; font-size: 13px; border-bottom: 1px solid #e2e8f0; }}
+        
+        .styled-table th {{
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: #011e6a;
+            color: white;
+            font-weight: 700;
+        }}
+        .styled-table tr:nth-child(even) {{ background-color: #f8fafc; }}
+        .styled-table tr:hover {{ background-color: #f1f5f9; }}
+        
+        input[type="text"] {{
+            width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 15px; box-sizing: border-box;
+        }}
+        
+        .insights-grid {{ display: flex; gap: 20px; background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; }}
+        .insights-col {{ flex: 2; }}
+        .notes-col {{ flex: 1; }}
+        ul {{ line-height: 1.8; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgNS42NyAxMjYuMDIgMjIuNDIiPgogIDxnIGNsaXAtcGF0aD0idXJsKCNhKSI+CiAgICA8ZyBjbGlwLXBhdGg9InVybCgjYikiPgogICAgICA8ZyBjbGlwLXBhdGg9InVybCgjYykiPgogICAgICAgIDxwYXRoIGZpbGw9IiMwMTFFNkEiIGQ9Ik00MC45MSAxMy4xNDNoNS4yNjVsNi4yODggMTQuOTI4aC00LjMxbC0xLjA2MS0yLjY0NGgtNy4wODhsLTEuMDYyIDIuNjQ0aC00LjMxem00LjY5NCA4LjU5OC0yLjA2Mi01LjExMi0yLjA2MSA1LjExMnptMTQuMDc3LTguNTk4IDMuMDgxIDguMTI1IDMuMDgyLTguMTI1aDUuNzg3djE0LjkyOEg2Ny44di05Ljg2OWwtNC4zNDUgOS44NjloLTEuMzg3bC00LjM0NS05Ljg2OXY5Ljg2OWgtMy44MzFWMTMuMTQzem0yMy44OTUgMGMzLjUzIDAgNS4yMjYgMi4zNDMgNS4yMjYgNS4wNiAwIDIuMTQ1LTEuMDkzIDQuMDgtMy4xMTIgNC45NDVsMi45MTQgNC45MjNoLTQuNjExbC0yLjYxMy00LjQ4NmgtMi44MzN2NC40ODZoLTMuOTQzVjEzLjE0M3ptLS42NDcgNi44NmMxLjE0NiAwIDEuODg0LS42MjUgMS44ODQtMS42NTVzLS43Ni0xLjUyMS0xLjcyOC0xLjUyMWgtNC41Mzh2My4xNzV6bTguMTcyLTYuODZoMy45NTZ2MTQuOTI4aC0zLjk1NnptNi4zNDUgMTEuMjg2IDguMjI0LTcuNmgtOC4xNnYtMy42ODZoMTMuODc1djMuNlh0LTguMjI1IDcuNjYyaDguMzM5djMuNjg2SDk3LjQ0NnYtMy42NDR6bTE2LjM4NS0xMS4yODZIMTI2djMuNjg2aC04LjIxM3YxLjcyN2g3LjZ2My42NzVoLTcuNnYyLjE1NEgxMjZ2My42ODZoLTEyLjE2OXpNMjkuNjU2IDI4LjA3aC05Ljk3OGwtMS4zNzItNC4yMiA4LjExNi01Ljczek03LjI3NiA1LjY4IDAgMjgu02hkOS45NzhsNC44NS0xNC45MjcgMS42MTcgNC45NzZoOS45NzdMMjIuMzggNS42OHoiLz4KICAgIDwvZz4KICAgIDwvZz4KICAgIDwvZz4KPC9zdmc+" alt="AMRIZE Logo" style="height: 48px; margin-bottom: 12px;">
+        <div class="title">Z-Groups Tracker Elevate</div>
+        <div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>
+    </div>
+
+    <div class="kpi-container">
+        <div class="kpi-card">
+            <div class="kpi-title">Active Accounts (Previous Month)</div>
+            <div class="kpi-value">{prev_active_count:,}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Active Accounts ({report_period_str})</div>
+            <div class="kpi-value">{curr_active_count:,}</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-title">Total Active Balance ({report_period_str})</div>
+            <div class="kpi-value">${total_balance_active_curr:,.2f}</div>
+        </div>
+    </div>
+
+    <div class="section-title">🔄 Credit Analyst Assignment Transitions</div>
+    <div class="section-desc">These are the accounts that transitioned strictly from one specific credit analyst to another (excluding unassigned states or None).</div>
+    <div class="table-scroll-container">{html_transitions}</div>
+
+    <div class="section-title">✨ New Accounts of the Month</div>
+    <div class="section-desc">These are new active accounts identified in <strong>{report_period_str}</strong> with open AR that did not exist in the previous month report.</div>
+    <div class="table-scroll-container">{html_new_accounts}</div>
+    <div class="alert-box"><strong>New Accounts Impact:</strong> Identified <strong>{new_accounts_count}</strong> new open AR accounts in <strong>{report_period_str}</strong> with a combined balance of <strong>${new_accounts_balance:,.2f}</strong>.</div>
+
+    <div class="section-title">⚠️ Unassigned Accounts</div>
+    <div class="section-desc">These are <strong>{report_period_str}</strong> accounts with an open balance where BOTH Z-Group and Credit Analyst are empty or unassigned.</div>
+    <div class="table-scroll-container">{html_unassigned}</div>
+    <div class="alert-box"><strong>Total Exposure Unassigned:</strong> There are <strong>{unassigned_count}</strong> accounts in <strong>{report_period_str}</strong> with open balance missing BOTH Z-Group and Credit Analyst, representing a total of <strong>${unassigned_balance_sum:,.2f}</strong>.</div>
+
+    <div class="section-title">👥 Analyst Portfolio Distribution</div>
+    <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="🔍 Search/Filter table by Analyst or Values...">
+    <div class="table-scroll-container">{html_distribution}</div>
+
+    <div class="section-title">📋 Executive Summary & Insights ({report_period_str})</div>
+    <div class="insights-grid">
+        <div class="insights-col">
             <ul>
-                <li><strong>Active Accounts:</strong> {curr_active_count:,} ({variation_str_active} vs prev month)</li>
-                <li><strong>Total Active Balance:</strong> ${total_balance_active_curr:,.2f}</li>
-                <li><strong>Workload Leader:</strong> {top_vol_analyst} ({top_vol_count:,} accounts)</li>
-                <li><strong>Risk Exposure Leader:</strong> {top_exp_analyst} (${top_exp_balance:,.2f})</li>
-                <li><strong>New Clients Added:</strong> {new_accounts_count} (${new_accounts_balance:,.2f})</li>
-                <li><strong>Unassigned Accounts:</strong> {unassigned_count} (${unassigned_balance_sum:,.2f})</li>
+                <li><strong>Workload Leader:</strong> <strong>{top_vol_analyst}</strong> manages the highest volume of active clients with <strong>{top_vol_count:,}</strong> accounts.</li>
+                <li><strong>Risk Exposure Leader:</strong> <strong>{top_exp_analyst}</strong> holds the highest portfolio risk exposure totaling <strong>${top_exp_balance:,.2f}</strong> in Total Balance.</li>
+                <li><strong>New Clients Added:</strong> Identified <strong>{new_accounts_count}</strong> brand-new client accounts in <strong>{report_period_str}</strong>, representing <strong>${new_accounts_balance:,.2f}</strong> in open balance.</li>
+                <li><strong>Unassigned Portfolio:</strong> There are <strong>{unassigned_count}</strong> unassigned accounts missing both Z-Group and Credit Analyst, representing <strong>${unassigned_balance_sum:,.2f}</strong>.</li>
             </ul>
         </div>
+        <div class="notes-col">
+            <div class="alert-box" style="margin-top: 0;">
+                ⚠️ <strong>Action Required:</strong> We recommend reviewing and assigning analyst ownership to the <strong>{unassigned_count} unassigned accounts</strong> as soon as possible.
+            </div>
+        </div>
+    </div>
 
-        <h2>👥 Analyst Portfolio Distribution</h2>
-        {df_dist_final.to_html(index=False, classes='table')}
-
-        <h2>🔄 Credit Analyst Transitions</h2>
-        {df_changes_formatted.to_html(index=False, classes='table') if not df_analyst_changes.empty else '<p>No transitions detected.</p>'}
-
-        <h2>✨ New Accounts of the Month</h2>
-        {df_new_formatted.to_html(index=False, classes='table') if not df_new_accounts.empty else '<p>No new accounts detected.</p>'}
-    </body>
-    </html>
-    """
+    <script>
+        function filterTable() {{
+            var input = document.getElementById("searchInput").value.toUpperCase();
+            var tables = document.querySelectorAll(".styled-table");
+            tables.forEach(table => {{
+                var rows = table.querySelectorAll("tr");
+                for (var i = 1; i < rows.length; i++) {{
+                    var text = rows[i].innerText.toUpperCase();
+                    rows[i].style.display = text.indexOf(input) > -1 ? "" : "none";
+                }}
+            }});
+        }}
+    </script>
+</body>
+</html>"""
     return html_content
-
-html_data = generate_html_report()
 
 st.download_button(
     label="📄 Download Report as HTML",
-    data=html_data,
-    file_name=f"Amrize_ZGroups_Report_{selected_month}_{selected_year}.html",
+    data=generate_html_report(),
+    file_name=f"Z_Groups_Report_{selected_month}_{selected_year}.html",
     mime="text/html"
 )
