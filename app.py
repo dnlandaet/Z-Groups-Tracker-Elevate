@@ -6,31 +6,26 @@ import re
 import gc
 from datetime import datetime
 
-# 1. Page Configuration
+# --- 1. PAGE CONFIGURATION ---
 st.set_page_config(
     page_title="Amrize - Z-Groups Tracker Elevate",
     page_icon="📊",
     layout="wide"
 )
 
-# 2. Modern Light UI - TODAS LAS ALERTAS FORZADAS EN AZUL CORPORATIVO SUAVE
+# --- 2. MODERN LIGHT UI ---
 st.markdown("""
     <style>
-    /* Global App Light Background */
     .stApp {
         background-color: #f8fafc;
         color: #1e293b;
         font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
     }
-    
-    /* Headers & Typography */
     h1, h2, h3, h4, h5, h6 {
         color: #011e6a !important;
         font-weight: 700 !important;
         letter-spacing: -0.5px;
     }
-    
-    /* Sidebar Styling (Deep Amrize Blue) */
     [data-testid="stSidebar"] {
         background-color: #011e6a;
         border-right: 1px solid #e2e8f0;
@@ -40,8 +35,6 @@ st.markdown("""
     [data-testid="stSidebar"] span, [data-testid="stSidebar"] label {
         color: #ffffff !important;
     }
-    
-    /* METRIC CARDS - UN SOLO BLOQUE AZUL CLARITO (#f0f5ff) CON ALTURA FIJA (140px) */
     div[data-testid="stMetric"] {
         background-color: #f0f5ff !important;
         border: 1px solid #dbeafe !important;
@@ -57,26 +50,22 @@ st.markdown("""
         justify-content: space-between !important;
         box-sizing: border-box !important;
     }
-
     div[data-testid="stMetric"] > div {
         background-color: transparent !important;
         border: none !important;
         box-shadow: none !important;
         padding: 0 !important;
     }
-    
     div[data-testid="stMetric"]:hover {
         box-shadow: 0 10px 15px -3px rgba(1, 30, 106, 0.12) !important;
         border-color: #93c5fd !important;
     }
-
     div[data-testid="stMetricValue"] {
         color: #001fbe !important;
         font-weight: 800 !important;
         font-size: 30px !important;
         word-break: break-all;
     }
-
     div[data-testid="stMetricLabel"] {
         color: #334155 !important;
         font-size: 13px !important;
@@ -84,8 +73,6 @@ st.markdown("""
         letter-spacing: 0.5px;
         font-weight: 600 !important;
     }
-    
-    /* Table & Dataframe Modern Styling */
     div[data-testid="stDataFrame"] {
         background-color: #ffffff;
         border-radius: 12px;
@@ -93,10 +80,7 @@ st.markdown("""
         border: 1px solid #e2e8f0;
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
-
-    /* FORZAR TODAS LAS ALERTAS (INFO, WARNING, SUCCESS) A AZUL SUAVE Y AZUL OSCURO EN TEXTO */
-    .stAlert, 
-    div[data-testid="stAlert"] {
+    .stAlert, div[data-testid="stAlert"] {
         background-color: #e0f2fe !important;
         border: 1px solid #7dd3fc !important;
         border-left: 6px solid #0284c7 !important;
@@ -108,14 +92,10 @@ st.markdown("""
         color: #0369a1 !important;
         font-weight: 600 !important;
     }
-    
-    /* Horizontal Dividers */
     hr {
         border-top: 1.5px solid #e2e8f0;
         margin: 2rem 0;
     }
-
-    /* Period Badge Styling */
     .period-badge {
         background: #f0f5ff;
         color: #011e6a;
@@ -128,8 +108,6 @@ st.markdown("""
         margin-bottom: 15px;
         box-shadow: 0 2px 4px rgba(1, 30, 106, 0.05);
     }
-
-    /* Custom Buttons Styling */
     .stButton>button {
         background-color: #0284c7;
         color: white;
@@ -151,7 +129,6 @@ if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 
 def check_login():
-    """Validates the hardcoded credentials"""
     if st.session_state["username_input"] == "ElevateBE" and st.session_state["password_input"] == "Elevate2026":
         st.session_state["logged_in"] = True
         st.success("Login successful!")
@@ -170,18 +147,15 @@ if not st.session_state["logged_in"]:
             if os.path.exists(name):
                 st.image(name, width=220)
                 break
-        
         st.subheader("🔑 Sign In to Z-Groups Tracker")
         st.text_input("Username", key="username_input")
         st.text_input("Password", type="password", key="password_input", on_change=check_login)
         st.button("Login", on_click=check_login, type="primary")
-        
         if "login_error" in st.session_state:
             st.error(st.session_state["login_error"])
-            
     st.stop()
 
-# --- BRANDING: AUTOMATIC LOGO DETECTOR (After Login) ---
+# --- BRANDING DETECTOR ---
 logo_file = None
 possible_names = ["Amrize_Logo_2025.svg", "Amrize_Logo_2025.png", "logo.png", "logo.svg"]
 for name in possible_names:
@@ -196,13 +170,9 @@ else:
 
 st.title("Z-Groups Tracker Elevate")
 
-# --- SIDEBAR: SELECTOR DE MES Y AÑO DEL REPORTE ---
+# --- SIDEBAR: PERIOD SELECTOR ---
 st.sidebar.header("🗓️ Report Period Selection")
-
-months_list = [
-    "January", "February", "March", "April", "May", "June", 
-    "July", "August", "September", "October", "November", "December"
-]
+months_list = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
 years_list = [2024, 2025, 2026, 2027, 2028, 2029, 2030]
 
 current_month_index = datetime.now().month - 1
@@ -212,15 +182,12 @@ selected_month = st.sidebar.selectbox("Report Month", options=months_list, index
 selected_year = st.sidebar.selectbox("Report Year", options=years_list, index=years_list.index(current_year) if current_year in years_list else 2)
 
 report_period_str = f"{selected_month} {selected_year}"
-
-# Badge de Periodo Estilizado
 st.markdown(f'<div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>', unsafe_allow_html=True)
 st.markdown("Upload your comparative monthly files (Excel or CSV) or connect to Google Sheets to track analyst changes and overall portfolio movement.")
 
-# --- HELPER FUNCTION: UNIVERSAL FILE READER OPTIMIZADO EN RAM ---
+# --- HELPER FUNCTIONS ---
 @st.cache_data(show_spinner=False, max_entries=2)
 def load_data_file(uploaded_file):
-    """Dynamically reads Excel (.xlsx, .xls) and CSV files with RAM caching"""
     if uploaded_file is not None:
         file_name = uploaded_file.name.lower() if hasattr(uploaded_file, 'name') else str(uploaded_file).lower()
         if file_name.endswith('.csv'):
@@ -236,10 +203,7 @@ def load_data_file(uploaded_file):
 
 # --- STEP 1: DATA SOURCE SELECTION ---
 st.sidebar.header("Data Source Selection")
-data_source = st.sidebar.radio(
-    "Choose Data Source:",
-    ("Upload Files (Excel / CSV)", "Connect Google Sheets")
-)
+data_source = st.sidebar.radio("Choose Data Source:", ("Upload Files (Excel / CSV)", "Connect Google Sheets"))
 
 df_prev_raw = None
 df_curr_raw = None
@@ -247,7 +211,6 @@ df_curr_raw = None
 if data_source == "Upload Files (Excel / CSV)":
     prev_file = st.sidebar.file_uploader("Upload PREVIOUS MONTH file", type=["xlsx", "xls", "csv"])
     curr_file = st.sidebar.file_uploader("Upload CURRENT MONTH file", type=["xlsx", "xls", "csv"])
-    
     if prev_file and curr_file:
         try:
             df_prev_raw = load_data_file(prev_file)
@@ -255,24 +218,16 @@ if data_source == "Upload Files (Excel / CSV)":
         except Exception as e:
             st.error(f"Error reading uploaded files: {e}")
             st.stop()
-
 else:
     default_sheet_url = "https://docs.google.com/spreadsheets/d/1HmShbAOnElJOQ9qy0lvYkxL6qxS7dc2xl9QzuUWTaAs/edit?gid=1603648333#gid=1603648333"
     sheet_url = st.sidebar.text_input("Google Sheet URL", value=default_sheet_url)
-    
     if st.sidebar.button("Load Google Sheets Data"):
         try:
-            if "/d/" in sheet_url:
-                sheet_id = sheet_url.split("/d/")[1].split("/")[0]
-            else:
-                sheet_id = sheet_url
-                
+            sheet_id = sheet_url.split("/d/")[1].split("/")[0] if "/d/" in sheet_url else sheet_url
             url_pm = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=P.M.+Report"
             url_cm = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=C.M.+Report"
-            
             df_prev_raw = pd.read_csv(url_pm, low_memory=False)
             df_curr_raw = pd.read_csv(url_cm, low_memory=False)
-            
             st.session_state["df_prev_raw"] = df_prev_raw
             st.session_state["df_curr_raw"] = df_curr_raw
             st.sidebar.success("Google Sheets loaded successfully!")
@@ -291,8 +246,7 @@ if df_prev_raw is None or df_curr_raw is None:
     st.info("💡 Please upload both previous and current month files or load the Google Sheets data from the sidebar.")
     st.stop()
 
-# --- STEP 2: ROBUST DATA CLEANING & VALIDATION ---
-
+# --- STEP 2: CLEANING & VALIDATION ---
 def sanitize_and_normalize_columns(df):
     df.columns = df.columns.astype(str).str.strip()
     if "Status" not in df.columns and len(df.columns) >= 7:
@@ -303,7 +257,6 @@ df_prev_raw = sanitize_and_normalize_columns(df_prev_raw)
 df_curr_raw = sanitize_and_normalize_columns(df_curr_raw)
 
 required_cols = ["Customer", "Customer Name", "Z-Group", "Credit Analyst", "Total Past Due", "Total Balance"]
-
 missing_prev = [c for c in required_cols if c not in df_prev_raw.columns]
 missing_curr = [c for c in required_cols if c not in df_curr_raw.columns]
 
@@ -312,7 +265,6 @@ if missing_prev or missing_curr:
     st.stop()
 
 def clean_currency_series(series):
-    """Converts string currencies to float32 to reduce memory footprint by 50%"""
     if series is None:
         return pd.Series(dtype='float32')
     s_clean = series.astype(str).str.replace(r'[\$,]', '', regex=True).str.strip()
@@ -321,68 +273,42 @@ def clean_currency_series(series):
 @st.cache_data(show_spinner=False, max_entries=2)
 def clean_data(df):
     df_clean = df.copy()
-    
-    df_clean = df_clean[
-        df_clean["Total Balance"].astype(str).str.strip().str.upper() != "NOT FOUND"
-    ]
-    
+    df_clean = df_clean[df_clean["Total Balance"].astype(str).str.strip().str.upper() != "NOT FOUND"]
     df_clean["Customer"] = (
         pd.to_numeric(df_clean["Customer"].astype(str).str.replace(r'\.0$', '', regex=True), errors='coerce')
         .fillna(0)
         .astype(np.int64)
         .astype(str)
     )
-    
     df_clean["Total Balance"] = clean_currency_series(df_clean["Total Balance"])
     df_clean["Total Past Due"] = clean_currency_series(df_clean["Total Past Due"])
-    
-    if "Status" in df_clean.columns:
-        df_clean["Status"] = df_clean["Status"].fillna("Unspecified").astype(str).str.strip()
-    else:
-        df_clean["Status"] = "Unspecified"
-        
+    df_clean["Status"] = df_clean["Status"].fillna("Unspecified").astype(str).str.strip() if "Status" in df_clean.columns else "Unspecified"
     return df_clean
 
 df_prev_global = clean_data(df_prev_raw)
 df_curr_global = clean_data(df_curr_raw)
 
-# Garbage collection to free memory
 del df_prev_raw, df_curr_raw
 gc.collect()
 
-# --- STEP 3: GENERAL PORTFOLIO SUMMARY ---
+# --- STEP 3: GENERAL SUMMARY ---
 prev_active_accounts = df_prev_global[df_prev_global["Status"].str.upper() == "ACTIVE"]
 curr_active_accounts = df_curr_global[df_curr_global["Status"].str.upper() == "ACTIVE"]
 
 prev_active_count = len(prev_active_accounts)
 curr_active_count = len(curr_active_accounts)
-
-if prev_active_count > 0:
-    variation_active = ((curr_active_count - prev_active_count) / prev_active_count) * 100
-    variation_str_active = f"{variation_active:+.2f}%"
-else:
-    variation_str_active = "N/A"
+variation_str_active = f"{((curr_active_count - prev_active_count) / prev_active_count) * 100:+.2f}%" if prev_active_count > 0 else "N/A"
 
 st.subheader("📌 General Portfolio Summary")
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.metric(
-        label="Active Accounts (Previous Month)", 
-        value=f"{prev_active_count:,}"
-    )
+    st.metric("Active Accounts (Previous Month)", f"{prev_active_count:,}")
 with col2:
-    st.metric(
-        label=f"Active Accounts ({report_period_str})", 
-        value=f"{curr_active_count:,}", 
-        delta=variation_str_active
-    )
+    st.metric(f"Active Accounts ({report_period_str})", f"{curr_active_count:,}", delta=variation_str_active)
 with col3:
     total_balance_active_curr = curr_active_accounts[curr_active_accounts["Total Balance"] != 0]["Total Balance"].sum()
-    st.metric(
-        label=f"Total Active Balance ({report_period_str})", 
-        value=f"${total_balance_active_curr:,.2f}"
-    )
+    st.metric(f"Total Active Balance ({report_period_str})", f"${total_balance_active_curr:,.2f}")
 
 st.write("---")
 
@@ -392,11 +318,7 @@ df_curr_clean = df_curr_global.copy()
 
 available_statuses = sorted(list(set(df_prev_clean["Status"].unique()).union(set(df_curr_clean["Status"].unique()))))
 if available_statuses and available_statuses != ["Unspecified"]:
-    selected_statuses = st.sidebar.multiselect(
-        "Filter Tables by Status (Column G)",
-        options=available_statuses,
-        default=available_statuses
-    )
+    selected_statuses = st.sidebar.multiselect("Filter Tables by Status (Column G)", options=available_statuses, default=available_statuses)
     if selected_statuses:
         df_prev_clean = df_prev_clean[df_prev_clean["Status"].isin(selected_statuses)]
         df_curr_clean = df_curr_clean[df_curr_clean["Status"].isin(selected_statuses)]
@@ -404,7 +326,7 @@ if available_statuses and available_statuses != ["Unspecified"]:
 df_prev_open = df_prev_clean[df_prev_clean["Total Balance"] != 0]
 df_curr_open = df_curr_clean[df_curr_clean["Total Balance"] != 0]
 
-# --- STEP 4: STRICT ANALYST-TO-ANALYST TRANSITION TABLE ---
+# --- STEP 4: TRANSITIONS ---
 st.subheader("🔄 Credit Analyst Assignment Transitions")
 st.markdown("These are the accounts that transitioned strictly **from one specific credit analyst to another** (excluding unassigned states or None).")
 
@@ -428,43 +350,27 @@ df_analyst_changes = df_comparison[
     (df_comparison["Credit Analyst_Current"].notna())
 ]
 
-transferred_balance = 0
-transferred_past_due = 0
-
 if not df_analyst_changes.empty:
     df_changes_formatted = df_analyst_changes[[
-        "Customer", "Customer Name", 
-        "Credit Analyst_Previous", "Credit Analyst_Current", 
-        "Total Past Due_Current", "Total Balance_Current"
+        "Customer", "Customer Name", "Credit Analyst_Previous", "Credit Analyst_Current", "Total Past Due_Current", "Total Balance_Current"
     ]].rename(columns={
         "Credit Analyst_Previous": "Previous Analyst",
         "Credit Analyst_Current": "Current Analyst",
         "Total Past Due_Current": "Total Past Due",
         "Total Balance_Current": "Total Balance"
     })
-
-    st.dataframe(
-        df_changes_formatted.style.format({
-            "Total Past Due": "${:,.2f}",
-            "Total Balance": "${:,.2f}"
-        }),
-        use_container_width=True
-    )
+    st.dataframe(df_changes_formatted.style.format({"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"}), use_container_width=True)
     
     transferred_past_due = df_analyst_changes["Total Past Due_Current"].sum()
     transferred_balance = df_analyst_changes["Total Balance_Current"].sum()
     transferred_count = len(df_analyst_changes)
-    
-    st.info(
-        f"💰 **Financial Impact of Assignments:** Identified **{transferred_count}** accounts transferred between valid analysts for {report_period_str}, "
-        f"representing **${transferred_balance:,.2f}** in Total Balance and **${transferred_past_due:,.2f}** in Total Past Due."
-    )
+    st.info(f"💰 **Financial Impact of Assignments:** Identified **{transferred_count}** accounts transferred between valid analysts for {report_period_str}, representing **${transferred_balance:,.2f}** in Total Balance and **${transferred_past_due:,.2f}** in Total Past Due.")
 else:
     st.info(f"✅ No credit analyst assignment transitions were detected between valid analysts for {report_period_str}.")
 
 st.write("---")
 
-# --- NEW SECTION: NEW ACCOUNTS OF THE MONTH ---
+# --- NEW ACCOUNTS OF THE MONTH ---
 st.subheader("✨ New Accounts of the Month")
 st.markdown(f"These are new active accounts identified in **{report_period_str}** with open AR that did not exist in the previous month report.")
 
@@ -477,75 +383,42 @@ new_accounts_balance = df_new_accounts["Total Balance"].sum()
 if not df_new_accounts.empty:
     df_new_formatted = df_new_accounts[[
         "Customer", "Customer Name", "Z-Group", "Credit Analyst", "Total Past Due", "Total Balance"
-    ]].rename(columns={
-        "Credit Analyst": "Analyst",
-        "Total Past Due": "Total Past Due",
-        "Total Balance": "Total Balance"
-    })
+    ]].rename(columns={"Credit Analyst": "Analyst"})
 
     st.dataframe(
-        df_new_formatted.style.format({
-            "Total Past Due": "${:,.2f}",
-            "Total Balance": "${:,.2f}"
-        }),
+        df_new_formatted.style.format({"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"}),
         use_container_width=True
     )
-    st.info(
-        f"New Accounts Impact: Identified {new_accounts_count} new open AR accounts in {report_period_str} with a combined balance of ${new_accounts_balance:,.2f}."
-    )
+    st.info(f"New Accounts Impact: Identified {new_accounts_count} new open AR accounts in {report_period_str} with a combined balance of ${new_accounts_balance:,.2f}.")
 else:
     st.info(f"No new open AR accounts were identified for {report_period_str}.")
 
 st.write("---")
 
-# --- UNASSIGNED ACCOUNTS SECTION ---
+# --- UNASSIGNED ACCOUNTS ---
 st.subheader("⚠️ Unassigned Accounts")
 st.markdown(f"These are **{report_period_str}** accounts with an open balance where **BOTH Z-Group and Credit Analyst are empty or unassigned**.")
 
 invalid_zgroups = ["NONE", "NAN", "", "NULL", "NOT FOUND", "NONE."]
 
 df_unassigned = df_curr_open[
-    (
-        (df_curr_open["Z-Group"].astype(str).str.strip().str.upper().isin(invalid_zgroups)) |
-        (df_curr_open["Z-Group"].isna())
-    ) &
-    (
-        (df_curr_open["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)) |
-        (df_curr_open["Credit Analyst"].isna())
-    )
+    ((df_curr_open["Z-Group"].astype(str).str.strip().str.upper().isin(invalid_zgroups)) | (df_curr_open["Z-Group"].isna())) &
+    ((df_curr_open["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)) | (df_curr_open["Credit Analyst"].isna()))
 ]
 
-unassigned_balance_sum = 0
 unassigned_count = len(df_unassigned)
+unassigned_balance_sum = df_unassigned["Total Balance"].sum() if not df_unassigned.empty else 0
 
 if not df_unassigned.empty:
-    df_unassigned_formatted = df_unassigned[[
-        "Customer", "Customer Name", "Status", "Z-Group", "Credit Analyst", "Total Past Due", "Total Balance"
-    ]].rename(columns={
-        "Credit Analyst": "Assigned Status",
-        "Total Past Due": "Total Past Due",
-        "Total Balance": "Total Balance"
-    })
-
-    st.dataframe(
-        df_unassigned_formatted.style.format({
-            "Total Past Due": "${:,.2f}",
-            "Total Balance": "${:,.2f}"
-        }),
-        use_container_width=True
-    )
-
-    unassigned_balance_sum = df_unassigned["Total Balance"].sum()
-    st.info(
-        f"Total Exposure Unassigned: There are {unassigned_count} accounts in {report_period_str} with open balance missing BOTH Z-Group and Credit Analyst, "
-        f"representing a total of ${unassigned_balance_sum:,.2f}."
-    )
+    df_unassigned_formatted = df_unassigned[["Customer", "Customer Name", "Status", "Z-Group", "Credit Analyst", "Total Past Due", "Total Balance"]].rename(columns={"Credit Analyst": "Assigned Status"})
+    st.dataframe(df_unassigned_formatted.style.format({"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"}), use_container_width=True)
+    st.info(f"Total Exposure Unassigned: There are {unassigned_count} accounts in {report_period_str} with open balance missing BOTH Z-Group and Credit Analyst, representing a total of ${unassigned_balance_sum:,.2f}.")
 else:
     st.info(f"Great! No active open-balance accounts were found with both Z-Group and Credit Analyst empty in {report_period_str}.")
 
 st.write("---")
 
-# --- STEP 5: ANALYST PORTFOLIO DISTRIBUTION ---
+# --- STEP 5: DISTRIBUTION ---
 st.subheader("👥 Analyst Portfolio Distribution & Monthly Variation")
 
 df_prev_valid_analysts = df_prev_global[~df_prev_global["Credit Analyst"].astype(str).str.strip().str.upper().isin(invalid_states)]
@@ -554,15 +427,8 @@ df_curr_valid_analysts = df_curr_global[~df_curr_global["Credit Analyst"].astype
 prev_total_all = df_prev_valid_analysts.groupby("Credit Analyst").agg(Total_Prev_All=("Customer", "count")).reset_index()
 curr_total_all = df_curr_valid_analysts.groupby("Credit Analyst").agg(Total_Curr_All=("Customer", "count")).reset_index()
 
-df_prev_open_active = df_prev_valid_analysts[
-    (df_prev_valid_analysts["Total Balance"] != 0) & 
-    (df_prev_valid_analysts["Status"].str.upper() == "ACTIVE")
-]
-
-df_curr_open_active = df_curr_valid_analysts[
-    (df_curr_valid_analysts["Total Balance"] != 0) & 
-    (df_curr_valid_analysts["Status"].str.upper() == "ACTIVE")
-]
+df_prev_open_active = df_prev_valid_analysts[(df_prev_valid_analysts["Total Balance"] != 0) & (df_prev_valid_analysts["Status"].str.upper() == "ACTIVE")]
+df_curr_open_active = df_curr_valid_analysts[(df_curr_valid_analysts["Total Balance"] != 0) & (df_curr_valid_analysts["Status"].str.upper() == "ACTIVE")]
 
 prev_open_active_dist = df_prev_open_active.groupby("Credit Analyst").agg(Open_AR_Prev_Active=("Customer", "count")).reset_index()
 curr_open_active_dist = df_curr_open_active.groupby("Credit Analyst").agg(
@@ -575,71 +441,40 @@ df_dist_merged = pd.merge(curr_open_active_dist, prev_open_active_dist, on="Cred
 df_dist_merged = pd.merge(df_dist_merged, curr_total_all, on="Credit Analyst", how="outer")
 df_dist_merged = pd.merge(df_dist_merged, prev_total_all, on="Credit Analyst", how="outer").fillna(0)
 
-df_dist_merged["Account_Diff"] = df_dist_merged["Open_AR_Curr_Active"] - df_dist_merged["Open_AR_Prev_Active"]
-
 def calc_open_ar_pct(row):
-    prev = row["Open_AR_Prev_Active"]
-    curr = row["Open_AR_Curr_Active"]
-    if prev > 0:
-        return f"{((curr - prev) / prev * 100):+.2f}%"
-    elif curr > 0:
-        return "New (+100%)"
-    else:
-        return "0.00%"
+    prev, curr = row["Open_AR_Prev_Active"], row["Open_AR_Curr_Active"]
+    return f"{((curr - prev) / prev * 100):+.2f}%" if prev > 0 else ("New (+100%)" if curr > 0 else "0.00%")
 
 df_dist_merged["Open AR % Change"] = df_dist_merged.apply(calc_open_ar_pct, axis=1)
 df_dist_merged = df_dist_merged.sort_values(by="Open_AR_Curr_Active", ascending=False)
 
 df_dist_final = df_dist_merged[[
-    "Credit Analyst", 
-    "Total_Prev_All", 
-    "Total_Curr_All",
-    "Open_AR_Prev_Active", 
-    "Open_AR_Curr_Active", 
-    "Open AR % Change", 
-    "Sum_Past_Due", 
-    "Sum_Balance"
+    "Credit Analyst", "Total_Prev_All", "Total_Curr_All", "Open_AR_Prev_Active", "Open_AR_Curr_Active", "Open AR % Change", "Sum_Past_Due", "Sum_Balance"
 ]].rename(columns={
-    "Credit Analyst": "Credit Analyst",
-    "Total_Prev_All": "Prev Accounts (All)",
-    "Total_Curr_All": "Curr Accounts (All)",
-    "Open_AR_Prev_Active": "Prev Acc Open AR",
-    "Open_AR_Curr_Active": "Curr Acc Open AR",
-    "Open AR % Change": "Open AR % Change",
-    "Sum_Past_Due": "Total Past Due",
-    "Sum_Balance": "Total Balance"
+    "Total_Prev_All": "Prev Accounts (All)", "Total_Curr_All": "Curr Accounts (All)", "Open_AR_Prev_Active": "Prev Acc Open AR", "Open_AR_Curr_Active": "Curr Acc Open AR", "Sum_Past_Due": "Total Past Due", "Sum_Balance": "Total Balance"
 })
 
 st.dataframe(
     df_dist_final.style.format({
-        "Prev Accounts (All)": "{:,.0f}",
-        "Curr Accounts (All)": "{:,.0f}",
-        "Prev Acc Open AR": "{:,.0f}",
-        "Curr Acc Open AR": "{:,.0f}",
-        "Total Past Due": "${:,.2f}",
-        "Total Balance": "${:,.2f}"
+        "Prev Accounts (All)": "{:,.0f}", "Curr Accounts (All)": "{:,.0f}", "Prev Acc Open AR": "{:,.0f}", "Curr Acc Open AR": "{:,.0f}", "Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"
     }),
     use_container_width=True
 )
 
 st.write("---")
 
-# --- EXECUTIVE SUMMARY & INSIGHTS ---
+# --- EXECUTIVE SUMMARY ---
 st.subheader(f"📋 Executive Summary & Insights ({report_period_str})")
 
 if not df_dist_merged.empty:
     top_vol_row = df_dist_merged.loc[df_dist_merged["Open_AR_Curr_Active"].idxmax()]
-    top_vol_analyst = top_vol_row["Credit Analyst"]
-    top_vol_count = int(top_vol_row["Open_AR_Curr_Active"])
-
+    top_vol_analyst, top_vol_count = top_vol_row["Credit Analyst"], int(top_vol_row["Open_AR_Curr_Active"])
     top_exp_row = df_dist_merged.loc[df_dist_merged["Sum_Balance"].idxmax()]
-    top_exp_analyst = top_exp_row["Credit Analyst"]
-    top_exp_balance = top_exp_row["Sum_Balance"]
+    top_exp_analyst, top_exp_balance = top_exp_row["Credit Analyst"], top_exp_row["Sum_Balance"]
 else:
     top_vol_analyst, top_vol_count = "N/A", 0
     top_exp_analyst, top_exp_balance = "N/A", 0
 
-# Cuentas retiradas a analistas válidos
 df_account_match = pd.merge(
     df_prev_global[["Customer", "Credit Analyst"]],
     df_curr_global[["Customer", "Credit Analyst", "Total Balance"]],
@@ -655,16 +490,11 @@ df_lost_accounts = df_account_match[
     (df_account_match["Credit Analyst_Prev"] != df_account_match["Credit Analyst_Curr"])
 ]
 
-lost_summary = df_lost_accounts.groupby("Credit Analyst_Prev").agg(
-    Lost_Count=("Customer", "count"),
-    Lost_Balance_Current=("Total Balance", "sum")
-).reset_index()
+lost_summary = df_lost_accounts.groupby("Credit Analyst_Prev").agg(Lost_Count=("Customer", "count"), Lost_Balance_Current=("Total Balance", "sum")).reset_index()
 
 if not lost_summary.empty:
     max_lost_row = lost_summary.loc[lost_summary["Lost_Count"].idxmax()]
-    lost_analyst = max_lost_row["Credit Analyst_Prev"]
-    accounts_lost = int(max_lost_row["Lost_Count"])
-    lost_balance_real = max_lost_row["Lost_Balance_Current"]
+    lost_analyst, accounts_lost, lost_balance_real = max_lost_row["Credit Analyst_Prev"], int(max_lost_row["Lost_Count"]), max_lost_row["Lost_Balance_Current"]
 else:
     lost_analyst, accounts_lost, lost_balance_real = "N/A", 0, 0
 
@@ -675,53 +505,33 @@ with col_summary:
     * **Workload Leader:** **{top_vol_analyst}** manages the highest volume of active clients with **{top_vol_count:,}** accounts.
     * **Risk Exposure Leader:** **{top_exp_analyst}** holds the highest portfolio risk exposure totaling **${top_exp_balance:,.2f}** in Total Balance.
     """
-    
     if accounts_lost > 0:
-        summary_text += f"""
-    * **Highest Account Reduction:** **{lost_analyst}** had **{accounts_lost}** accounts removed from their portfolio in **{report_period_str}**, representing **${lost_balance_real:,.2f}** in Total Balance (based on current month values).
-        """
+        summary_text += f"    * **Highest Account Reduction:** **{lost_analyst}** had **{accounts_lost}** accounts removed from their portfolio in **{report_period_str}**, representing **${lost_balance_real:,.2f}** in Total Balance.\n"
     else:
-        summary_text += f"""
-    * **Highest Account Reduction:** No active analysts experienced account removals in **{report_period_str}**.
-        """
+        summary_text += f"    * **Highest Account Reduction:** No active analysts experienced account removals in **{report_period_str}**.\n"
 
-    summary_text += f"""
-    * **New Clients Added:** Identified **{new_accounts_count}** brand-new client accounts in **{report_period_str}**, representing **${new_accounts_balance:,.2f}** in open balance.
+    summary_text += f"""    * **New Clients Added:** Identified **{new_accounts_count}** brand-new client accounts in **{report_period_str}**, representing **${new_accounts_balance:,.2f}** in open balance.
     * **Unassigned Portfolio:** There are **{unassigned_count}** unassigned accounts missing both Z-Group and Credit Analyst, representing **${unassigned_balance_sum:,.2f}**.
     """
     st.markdown(summary_text)
 
 with col_notes:
     if unassigned_count > 0:
-        st.info(
-            f"⚠️ **Action Required:** We recommend reviewing and assigning analyst ownership to the **{unassigned_count} unassigned accounts** "
-            f"as soon as possible to mitigate financial exposure of **${unassigned_balance_sum:,.2f}** for **{report_period_str}**."
-        )
+        st.info(f"⚠️ **Action Required:** We recommend reviewing and assigning analyst ownership to the **{unassigned_count} unassigned accounts** as soon as possible to mitigate financial exposure of **${unassigned_balance_sum:,.2f}** for **{report_period_str}**.")
     else:
         st.info(f"✅ **Outstanding:** All active open-balance accounts have assigned analysts in {report_period_str}. Zero unattended balance detected.")
-
-# --- HTML EXPORT FUNCTIONALITY (EXACT TEMPLATE FORMATTING) ---
+        # --- EXACT HTML EXPORT FUNCTIONALITY ---
 st.write("---")
 st.subheader("📥 Export & Download Report")
 
 def generate_html_report():
-    # Helper to convert formatted DataFrames into HTML tables or fallback divs
-    if not df_analyst_changes.empty:
-        html_transitions = df_changes_formatted.to_html(index=False, classes='dataframe styled-table')
-    else:
-        html_transitions = f'<div class="alert-box">✅ No credit analyst assignment transitions were detected between valid analysts for {report_period_str}.</div>'
+    html_transitions = f'<div class="table-scroll-container">{df_changes_formatted.style.format({"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"}).to_html(index=False, classes="dataframe styled-table")}</div>' if not df_analyst_changes.empty else f'<div class="alert-box">✅ No credit analyst assignment transitions were detected between valid analysts for {report_period_str}.</div>'
 
-    if not df_new_accounts.empty:
-        html_new_accounts = df_new_formatted.to_html(index=False, classes='dataframe styled-table')
-    else:
-        html_new_accounts = '<p>No new open AR accounts were identified.</p>'
+    html_new_accounts = f'<div class="table-scroll-container">{df_new_formatted.style.format({"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"}).to_html(index=False, classes="dataframe styled-table")}</div>' if not df_new_accounts.empty else f'<div class="alert-box">No new open AR accounts were identified for {report_period_str}.</div>'
 
-    if not df_unassigned.empty:
-        html_unassigned = df_unassigned_formatted.to_html(index=False, classes='dataframe styled-table')
-    else:
-        html_unassigned = '<p>No unassigned accounts detected.</p>'
+    html_unassigned = f'<div class="table-scroll-container">{df_unassigned_formatted.style.format({"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"}).to_html(index=False, classes="dataframe styled-table")}</div>' if not df_unassigned.empty else f'<div class="alert-box">Great! No active open-balance accounts were found with both Z-Group and Credit Analyst empty in {report_period_str}.</div>'
 
-    html_distribution = df_dist_final.to_html(index=False, classes='dataframe styled-table')
+    html_distribution = f'<div class="table-scroll-container">{df_dist_final.style.format({"Prev Accounts (All)": "{:,.0f}", "Curr Accounts (All)": "{:,.0f}", "Prev Acc Open AR": "{:,.0f}", "Curr Acc Open AR": "{:,.0f}", "Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"}).to_html(index=False, classes="dataframe styled-table")}</div>'
 
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
@@ -751,10 +561,8 @@ def generate_html_report():
         }}
         .kpi-title {{ font-size: 12px; color: #334155; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }}
         .kpi-value {{ font-size: 28px; font-weight: 800; color: #001fbe; margin-top: 6px; }}
-        
         .section-title {{ font-size: 20px; font-weight: 700; color: #011e6a; margin: 30px 0 15px 0; }}
         .section-desc {{ font-size: 14px; color: #64748b; margin-top: -10px; margin-bottom: 15px; }}
-        
         .alert-box {{
             background-color: #e0f2fe;
             border: 1px solid #7dd3fc;
@@ -767,7 +575,6 @@ def generate_html_report():
             margin-top: 10px;
             margin-bottom: 20px;
         }}
-        
         .table-scroll-container {{
             max-height: 380px;
             overflow-y: auto;
@@ -777,14 +584,12 @@ def generate_html_report():
             background: white;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }}
-
         .styled-table {{
             width: 100%;
             border-collapse: collapse;
             background: white;
         }}
         .styled-table th, .styled-table td {{ padding: 12px 16px; text-align: left; font-size: 13px; border-bottom: 1px solid #e2e8f0; }}
-        
         .styled-table th {{
             position: sticky;
             top: 0;
@@ -795,11 +600,9 @@ def generate_html_report():
         }}
         .styled-table tr:nth-child(even) {{ background-color: #f8fafc; }}
         .styled-table tr:hover {{ background-color: #f1f5f9; }}
-        
         input[type="text"] {{
             width: 100%; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 15px; box-sizing: border-box;
         }}
-        
         .insights-grid {{ display: flex; gap: 20px; background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; }}
         .insights-col {{ flex: 2; }}
         .notes-col {{ flex: 1; }}
@@ -808,7 +611,7 @@ def generate_html_report():
 </head>
 <body>
     <div class="header">
-        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgNS42NyAxMjYuMDIgMjIuNDIiPgogIDxnIGNsaXAtcGF0aD0idXJsKCNhKSI+CiAgICA8ZyBjbGlwLXBhdGg9InVybCgjYikiPgogICAgICA8ZyBjbGlwLXBhdGg9InVybCgjYykiPgogICAgICAgIDxwYXRoIGZpbGw9IiMwMTFFNkEiIGQ9Ik00MC45MSAxMy4xNDNoNS4yNjVsNi4yODggMTQuOTI4aC00LjMxbC0xLjA2MS0yLjY0NGgtNy4wODhsLTEuMDYyIDIuNjQ0aC00LjMxem00LjY5NCA4LjU5OC0yLjA2Mi01LjExMi0yLjA2MSA1LjExMnptMTQuMDc3LTguNTk4IDMuMDgxIDguMTI1IDMuMDgyLTguMTI1aDUuNzg3djE0LjkyOEg2Ny44di05Ljg2OWwtNC4zNDUgOS44NjloLTEuMzg3bC00LjM0NS05Ljg2OXY5Ljg2OWgtMy44MzFWMTMuMTQzem0yMy44OTUgMGMzLjUzIDAgNS4yMjYgMi4zNDMgNS4yMjYgNS4wNiAwIDIuMTQ1LTEuMDkzIDQuMDgtMy4xMTIgNC45NDVsMi45MTQgNC45MjNoLTQuNjExbC0yLjYxMy00LjQ4NmgtMi44MzN2NC40ODZoLTMuOTQzVjEzLjE0M3ptLS42NDcgNi44NmMxLjE0NiAwIDEuODg0LS42MjUgMS44ODQtMS42NTVzLS43Ni0xLjUyMS0xLjcyOC0xLjUyMWgtNC41Mzh2My4xNzV6bTguMTcyLTYuODZoMy45NTZ2MTQuOTI4aC0zLjk1NnptNi4zNDUgMTEuMjg2IDguMjI0LTcuNmgtOC4xNnYtMy42ODZoMTMuODc1djMuNlh0LTguMjI1IDcuNjYyaDguMzM5djMuNjg2SDk3LjQ0NnYtMy42NDR6bTE2LjM4NS0xMS4yODZIMTI2djMuNjg2aC04LjIxM3YxLjcyN2g3LjZ2My42NzVoLTcuNnYyLjE1NEgxMjZ2My42ODZoLTEyLjE2OXpNMjkuNjU2IDI4LjA3aC05Ljk3OGwtMS4zNzItNC4yMiA4LjExNi01Ljczek03LjI3NiA1LjY4IDAgMjgu02hkOS45NzhsNC44NS0xNC45MjcgMS42MTcgNC45NzZoOS45NzdMMjIuMzggNS42OHoiLz4KICAgIDwvZz4KICAgIDwvZz4KICAgIDwvZz4KPC9zdmc+" alt="AMRIZE Logo" style="height: 48px; margin-bottom: 12px;">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIGZpbGw9Im5vbmUiIHZpZXdCb3g9IjAgNS42NyAxMjYuMDIgMjIuNDIiPgogIDxnIGNsaXAtcGF0aD0idXJsKCNhKSI+CiAgICA8ZyBjbGlwLXBhdGg9InVybCgjYikiPgogICAgICA8ZyBjbGlwLXBhdGg9InVybCgjYykiPgogICAgICAgIDxwYXRoIGZpbGw9IiMwMTFFNkEiIGQ9Ik00MC45MSAxMy4xNDNoNS4yNjVsNi4yODggMTQuOTI4aC00LjMxbC0xLjA2MS0yLjY0NGgtNy4wODhsLTEuMDYyIDIuNjQ0aC00LjMxem00LjY5NCA4LjU5OC0yLjA2Mi01LjExMi0yLjA2MSA1LjExMnptMTQuMDc3LTguNTk4IDMuMDgxIDguMTI1IDMuMDgyLTguMTI1aDUuNzg3djE0LjkyOEg2Ny44di05Ljg2OWwtNC4zNDUgOS44NjloLTEuMzg3bC00LjM0NS05Ljg2OXY5Ljg2OWgtMy44MzFWMTMuMTQzem0yMy44OTUgMGMzLjUzIDAgNS4yMjYgMi4zNDMgNS4yMjYgNS4wNiAwIDIuMTQ1LTEuMDkzIDQuMDgtMy4xMTIgNC45NDVsMi45MTQgNC45MjNoLTQuNjExbC0yLjYxMy00LjQ4NmgtMi44MzN2NC40ODZoLTMuOTQzVjEzLjE0M3ptLS42NDcgNi44NmMxLjE0NiAw IDEuODg0LS42MjUgMS44ODQtMS42NTVzLS43Ni0xLjUyMS0xLjcyOC0xLjUyMWgtNC41Mzh2My4xNzV6bTguMTcyLTYuODZoMy45NTZ2MTQuOTI4aC0zLjk1NnptNi4zNDUgM1ptMTQuMDc3LTguNTk4IDMuMDgxIDguMTI1IDMuMDgyLTguMTI1aDUuNzg3djE0LjkyOEg2Ny44di05Ljg2OWwtNC4zNDUgOS44NjloLTEuMzg3bC00LjM0NS05Ljg2OXY5Ljg2OWgtMy44MzFWMTMuMTQzem0yMy44OTUgMGMzLjUzIDAgNS4yMjYgMi4zNDMgNS4yMjYgNS4wNiAwIDIuMTQ1LTEuMDkzIDQuMDgtMy4xMTIgNC45NDVsMi45MTQgNC45MjNoLTQuNjExbC0yLjYxMy00LjQ4NmgtMi44MzN2NC40ODZoLTMuOTQzVjEzLjE0M3ptLS42NDcgNi44NmMxLjE0NiAw IDEuODg0LS42MjUgMS44ODQtMS42NTVzLS43Ni0xLjUyMS0xLjcyOC0xLjUyMWgtNC41Mzh2My4xNzV6bTguMTcyLTYuODZoMy45NTZ2MTQuOTI4aC0zLjk1NnptNi4zNDUgMTEuMjg2IDguMjI0LTcuNmgtOC4xNnYtMy42ODZoMTMuODc1djMuNlh0LTguMjI1IDcuNjYyaDguMzM5djMuNjg2SDk3LjQ0NnYtMy42NDR6bTE2LjM4NS0xMS4yODZIMTI2djMuNjg2aC04LjIxM3YxLjcyN2g3LjZ2My42NzVoLTcuNnYyLjE1NEgxMjZ2My42ODZoLTEyLjE2OXpNMjkuNjU2IDI4LjA3aC05Ljk3OGwtMS4zNzItNC4yMiA4LjExNi01Ljczek03LjI3NiA1LjY4IDAgMjgwMmhkOS45NzhsNC44NS0xNC45MjcgMS42MTcgNC45NzZoOS45NzdMMjIuMzggNS42OHoiLz4KICAgIDwvZz4KICAgIDwvZz4KICAgIDwvZz4KPC9zdmc+" alt="AMRIZE Logo" style="height: 48px; margin-bottom: 12px;">
         <div class="title">Z-Groups Tracker Elevate</div>
         <div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>
     </div>
@@ -830,21 +633,21 @@ def generate_html_report():
 
     <div class="section-title">🔄 Credit Analyst Assignment Transitions</div>
     <div class="section-desc">These are the accounts that transitioned strictly from one specific credit analyst to another (excluding unassigned states or None).</div>
-    <div class="table-scroll-container">{html_transitions}</div>
+    {html_transitions}
 
     <div class="section-title">✨ New Accounts of the Month</div>
     <div class="section-desc">These are new active accounts identified in <strong>{report_period_str}</strong> with open AR that did not exist in the previous month report.</div>
-    <div class="table-scroll-container">{html_new_accounts}</div>
+    {html_new_accounts}
     <div class="alert-box"><strong>New Accounts Impact:</strong> Identified <strong>{new_accounts_count}</strong> new open AR accounts in <strong>{report_period_str}</strong> with a combined balance of <strong>${new_accounts_balance:,.2f}</strong>.</div>
 
     <div class="section-title">⚠️ Unassigned Accounts</div>
     <div class="section-desc">These are <strong>{report_period_str}</strong> accounts with an open balance where BOTH Z-Group and Credit Analyst are empty or unassigned.</div>
-    <div class="table-scroll-container">{html_unassigned}</div>
+    {html_unassigned}
     <div class="alert-box"><strong>Total Exposure Unassigned:</strong> There are <strong>{unassigned_count}</strong> accounts in <strong>{report_period_str}</strong> with open balance missing BOTH Z-Group and Credit Analyst, representing a total of <strong>${unassigned_balance_sum:,.2f}</strong>.</div>
 
     <div class="section-title">👥 Analyst Portfolio Distribution</div>
     <input type="text" id="searchInput" onkeyup="filterTable()" placeholder="🔍 Search/Filter table by Analyst or Values...">
-    <div class="table-scroll-container">{html_distribution}</div>
+    {html_distribution}
 
     <div class="section-title">📋 Executive Summary & Insights ({report_period_str})</div>
     <div class="insights-grid">
@@ -858,7 +661,7 @@ def generate_html_report():
         </div>
         <div class="notes-col">
             <div class="alert-box" style="margin-top: 0;">
-                ⚠️ <strong>Action Required:</strong> We recommend reviewing and assigning analyst ownership to the <strong>{unassigned_count} unassigned accounts</strong> as soon as possible.
+                ⚠️ <strong>Action Required:</strong> Review unassigned accounts.
             </div>
         </div>
     </div>
