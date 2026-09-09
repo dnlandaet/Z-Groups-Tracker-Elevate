@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -207,7 +206,8 @@ def check_login():
 
     if username == "ElevateBE" and password == "Elevate2026":
         st.session_state["logged_in"] = True
-        st.session_state.pop("login_error", None)
+        if "login_error" in st.session_state:
+            del st.session_state["login_error"]
     else:
         st.session_state["login_error"] = "❌ Incorrect username or password."
 
@@ -333,73 +333,31 @@ def normalize_column_name(name):
 
 
 def detect_columns_from_header(uploaded_file):
-    """
-    Reads only the header to determine the actual columns.
-    This avoids loading unnecessary columns into memory.
-    """
-
     file_name = uploaded_file.name.lower()
-
     uploaded_file.seek(0)
 
     if file_name.endswith(".csv"):
-
         try:
-            header = pd.read_csv(
-                uploaded_file,
-                nrows=0,
-                encoding="utf-8"
-            )
+            header = pd.read_csv(uploaded_file, nrows=0, encoding="utf-8")
         except UnicodeDecodeError:
             uploaded_file.seek(0)
-
-            header = pd.read_csv(
-                uploaded_file,
-                nrows=0,
-                encoding="latin1"
-            )
-
+            header = pd.read_csv(uploaded_file, nrows=0, encoding="latin1")
     else:
+        header = pd.read_excel(uploaded_file, nrows=0)
 
-        header = pd.read_excel(
-            uploaded_file,
-            nrows=0
-        )
-
-    header.columns = [
-        normalize_column_name(c)
-        for c in header.columns
-    ]
-
+    header.columns = [normalize_column_name(c) for c in header.columns]
     return list(header.columns)
 
 
 def get_use_columns(uploaded_file):
-    """
-    Determines which columns need to be loaded.
-
-    Required columns are loaded.
-    If Status is not named correctly but exists in position G,
-    the seventh column is also loaded.
-    """
-
     columns = detect_columns_from_header(uploaded_file)
+    use_columns = [col for col in REQUIRED_COLUMNS if col in columns]
 
-    use_columns = []
-
-    for col in REQUIRED_COLUMNS:
-        if col in columns:
-            use_columns.append(col)
-
-    # Status exists by name
     if "Status" in columns:
         if "Status" not in use_columns:
             use_columns.append("Status")
-
-    # Status may be column G
     elif len(columns) >= 7:
         seventh_column = columns[6]
-
         if seventh_column not in use_columns:
             use_columns.append(seventh_column)
 
@@ -407,111 +365,49 @@ def get_use_columns(uploaded_file):
 
 
 def load_data_file(uploaded_file):
-    """
-    Robust and memory-conscious file loader.
-
-    Supports:
-        .xlsx
-        .xls
-        .csv
-    """
-
     if uploaded_file is None:
         return None
 
     file_name = uploaded_file.name.lower()
 
     try:
-
         columns, use_columns = get_use_columns(uploaded_file)
-
-        missing_required = [
-            col
-            for col in REQUIRED_COLUMNS
-            if col not in columns
-        ]
+        missing_required = [col for col in REQUIRED_COLUMNS if col not in columns]
 
         if missing_required:
             raise ValueError(
-                "Missing required columns: "
-                + ", ".join(missing_required)
+                "Missing required columns: " + ", ".join(missing_required)
             )
 
         uploaded_file.seek(0)
 
         if file_name.endswith(".csv"):
-
             try:
-
-                df = pd.read_csv(
-                    uploaded_file,
-                    usecols=use_columns,
-                    encoding="utf-8"
-                )
-
+                df = pd.read_csv(uploaded_file, usecols=use_columns, encoding="utf-8")
             except UnicodeDecodeError:
-
                 uploaded_file.seek(0)
-
-                df = pd.read_csv(
-                    uploaded_file,
-                    usecols=use_columns,
-                    encoding="latin1"
-                )
-
+                df = pd.read_csv(uploaded_file, usecols=use_columns, encoding="latin1")
         elif file_name.endswith(".xlsx"):
-
-            df = pd.read_excel(
-                uploaded_file,
-                usecols=use_columns,
-                engine="openpyxl"
-            )
-
+            df = pd.read_excel(uploaded_file, usecols=use_columns, engine="openpyxl")
         elif file_name.endswith(".xls"):
-
-            df = pd.read_excel(
-                uploaded_file,
-                usecols=use_columns
-            )
-
+            df = pd.read_excel(uploaded_file, usecols=use_columns)
         else:
+            raise ValueError("Unsupported file type.")
 
-            raise ValueError(
-                "Unsupported file type."
-            )
+        df.columns = [normalize_column_name(c) for c in df.columns]
 
-        df.columns = [
-            normalize_column_name(c)
-            for c in df.columns
-        ]
-
-        # If Status isn't explicitly named,
-        # recover it from column G.
         if "Status" not in df.columns and len(columns) >= 7:
-
             seventh_original = columns[6]
-
             if seventh_original in df.columns:
+                df.rename(columns={seventh_original: "Status"}, inplace=True)
 
-                df.rename(
-                    columns={
-                        seventh_original: "Status"
-                    },
-                    inplace=True
-                )
-
-        # Guarantee Status exists
         if "Status" not in df.columns:
-
             df["Status"] = "Unspecified"
 
         return df
 
     except Exception as e:
-
-        raise RuntimeError(
-            f"Could not read '{uploaded_file.name}': {e}"
-        )
+        raise RuntimeError(f"Could not read '{uploaded_file.name}': {e}")
 
 
 # ============================================================
@@ -519,23 +415,14 @@ def load_data_file(uploaded_file):
 # ============================================================
 
 def clean_currency_series(series):
-
     if series is None:
         return pd.Series(dtype="float32")
 
     return (
-        series
-        .astype(str)
+        series.astype(str)
         .str.replace(r"[\$,]", "", regex=True)
-        .str.replace(",", "", regex=False)
         .str.strip()
-        .replace(
-            {
-                "nan": np.nan,
-                "None": np.nan,
-                "": np.nan
-            }
-        )
+        .replace({"nan": np.nan, "None": np.nan, "": np.nan})
         .pipe(pd.to_numeric, errors="coerce")
         .fillna(0)
         .astype("float32")
@@ -543,25 +430,14 @@ def clean_currency_series(series):
 
 
 def clean_customer_series(series):
-
     numeric = pd.to_numeric(
-        series.astype(str)
-        .str.replace(r"\.0$", "", regex=True)
-        .str.strip(),
+        series.astype(str).str.replace(r"\.0$", "", regex=True).str.strip(),
         errors="coerce"
     )
-
-    return (
-        numeric
-        .fillna(0)
-        .astype("int64")
-        .astype(str)
-    )
+    return numeric.fillna(0).astype("int64").astype(str)
 
 
 def clean_data(df):
-
-    # Work only with the columns actually required.
     keep_columns = [
         "Customer",
         "Customer Name",
@@ -572,58 +448,19 @@ def clean_data(df):
         "Status"
     ]
 
-    df = df[
-        [c for c in keep_columns if c in df.columns]
-    ].copy()
+    df = df[[c for c in keep_columns if c in df.columns]].copy()
 
-    # Remove NOT FOUND balances
-    balance_text = (
-        df["Total Balance"]
-        .astype(str)
-        .str.strip()
-        .str.upper()
-    )
+    balance_text = df["Total Balance"].astype(str).str.strip().str.upper()
+    df = df[balance_text != "NOT FOUND"].copy()
 
-    df = df[
-        balance_text != "NOT FOUND"
-    ].copy()
+    df["Customer"] = clean_customer_series(df["Customer"])
+    df["Total Balance"] = clean_currency_series(df["Total Balance"])
+    df["Total Past Due"] = clean_currency_series(df["Total Past Due"])
 
-    # Customer
-    df["Customer"] = clean_customer_series(
-        df["Customer"]
-    )
+    for col in ["Customer Name", "Z-Group", "Credit Analyst"]:
+        df[col] = df[col].fillna("").astype(str).str.strip()
 
-    # Currency
-    df["Total Balance"] = clean_currency_series(
-        df["Total Balance"]
-    )
-
-    df["Total Past Due"] = clean_currency_series(
-        df["Total Past Due"]
-    )
-
-    # Text columns
-    for col in [
-        "Customer Name",
-        "Z-Group",
-        "Credit Analyst"
-    ]:
-
-        df[col] = (
-            df[col]
-            .fillna("")
-            .astype(str)
-            .str.strip()
-        )
-
-    # Status
-    df["Status"] = (
-        df["Status"]
-        .fillna("Unspecified")
-        .astype(str)
-        .str.strip()
-    )
-
+    df["Status"] = df["Status"].fillna("Unspecified").astype(str).str.strip()
     return df
 
 
@@ -632,53 +469,35 @@ def clean_data(df):
 # ============================================================
 
 def consolidate_duplicate_customers(df):
-    """
-    Prevents many-to-many merges.
-
-    If the same Customer appears multiple times,
-    financial values are summed while descriptive
-    information is taken from the first non-empty value.
-    """
-
     if df.empty:
         return df
 
     duplicate_count = df["Customer"].duplicated().sum()
-
     if duplicate_count == 0:
         return df
 
     def first_valid(series):
-
         for value in series:
-
             value_str = str(value).strip()
-
             if value_str and value_str.lower() != "nan":
                 return value
-
         return ""
 
-    grouped = (
-        df.groupby("Customer", as_index=False)
-        .agg(
-            {
-                "Customer Name": first_valid,
-                "Z-Group": first_valid,
-                "Credit Analyst": first_valid,
-                "Total Past Due": "sum",
-                "Total Balance": "sum",
-                "Status": first_valid
-            }
-        )
+    grouped = df.groupby("Customer", as_index=False).agg(
+        {
+            "Customer Name": first_valid,
+            "Z-Group": first_valid,
+            "Credit Analyst": first_valid,
+            "Total Past Due": "sum",
+            "Total Balance": "sum",
+            "Status": first_valid
+        }
     )
 
     st.warning(
-        f"⚠️ Duplicate Customer IDs were detected. "
-        f"{duplicate_count:,} duplicate rows were consolidated "
-        f"to prevent the comparison engine from multiplying records."
+        f"⚠️ Duplicate Customer IDs detected: {duplicate_count:,} duplicate rows "
+        f"consolidated to prevent multiplied metrics."
     )
-
     return grouped
 
 
@@ -690,10 +509,7 @@ st.sidebar.header("Data Source Selection")
 
 data_source = st.sidebar.radio(
     "Choose Data Source:",
-    (
-        "Upload Files (Excel / CSV)",
-        "Connect Google Sheets"
-    )
+    ("Upload Files (Excel / CSV)", "Connect Google Sheets")
 )
 
 df_prev_raw = None
@@ -705,13 +521,11 @@ df_curr_raw = None
 # ============================================================
 
 if data_source == "Upload Files (Excel / CSV)":
-
     prev_file = st.sidebar.file_uploader(
         "Upload PREVIOUS MONTH file",
         type=["xlsx", "xls", "csv"],
         key="previous_file"
     )
-
     curr_file = st.sidebar.file_uploader(
         "Upload CURRENT MONTH file",
         type=["xlsx", "xls", "csv"],
@@ -719,25 +533,12 @@ if data_source == "Upload Files (Excel / CSV)":
     )
 
     if prev_file and curr_file:
-
         with st.spinner("Loading and optimizing your files..."):
-
             try:
-
-                df_prev_raw = load_data_file(
-                    prev_file
-                )
-
-                df_curr_raw = load_data_file(
-                    curr_file
-                )
-
+                df_prev_raw = load_data_file(prev_file)
+                df_curr_raw = load_data_file(curr_file)
             except Exception as e:
-
-                st.error(
-                    f"❌ Error loading files:\n\n{e}"
-                )
-
+                st.error(f"❌ Error loading files:\n\n{e}")
                 st.stop()
 
 
@@ -746,76 +547,37 @@ if data_source == "Upload Files (Excel / CSV)":
 # ============================================================
 
 else:
-
     default_sheet_url = (
         "https://docs.google.com/spreadsheets/d/"
         "1HmShbAOnElJOQ9qy0lvYkxL6qxS7dc2xl9QzuUWTaAs/"
         "edit?gid=1603648333#gid=1603648333"
     )
 
-    sheet_url = st.sidebar.text_input(
-        "Google Sheet URL",
-        value=default_sheet_url
-    )
+    sheet_url = st.sidebar.text_input("Google Sheet URL", value=default_sheet_url)
 
-    if st.sidebar.button(
-        "Load Google Sheets Data"
-    ):
-
+    if st.sidebar.button("Load Google Sheets Data"):
         try:
-
             if "/d/" in sheet_url:
-
-                sheet_id = (
-                    sheet_url
-                    .split("/d/")[1]
-                    .split("/")[0]
-                )
-
+                sheet_id = sheet_url.split("/d/")[1].split("/")[0]
             else:
-
                 sheet_id = sheet_url.strip()
 
-            url_pm = (
-                f"https://docs.google.com/spreadsheets/d/"
-                f"{sheet_id}/gviz/tq?tqx=out:csv"
-                f"&sheet=P.M.+Report"
-            )
+            url_pm = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=P.M.+Report"
+            url_cm = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=C.M.+Report"
 
-            url_cm = (
-                f"https://docs.google.com/spreadsheets/d/"
-                f"{sheet_id}/gviz/tq?tqx=out:csv"
-                f"&sheet=C.M.+Report"
-            )
-
-            df_prev_raw = pd.read_csv(
-                url_pm
-            )
-
-            df_curr_raw = pd.read_csv(
-                url_cm
-            )
+            df_prev_raw = pd.read_csv(url_pm)
+            df_curr_raw = pd.read_csv(url_cm)
 
             st.session_state["df_prev_raw"] = df_prev_raw
             st.session_state["df_curr_raw"] = df_curr_raw
 
-            st.sidebar.success(
-                "Google Sheets loaded successfully!"
-            )
+            st.sidebar.success("Google Sheets loaded successfully!")
 
         except Exception as e:
-
-            st.error(
-                f"❌ Error connecting to Google Sheets: {e}"
-            )
-
+            st.error(f"❌ Error connecting to Google Sheets: {e}")
             st.stop()
 
-    elif (
-        "df_prev_raw" in st.session_state
-        and "df_curr_raw" in st.session_state
-    ):
-
+    elif "df_prev_raw" in st.session_state and "df_curr_raw" in st.session_state:
         df_prev_raw = st.session_state["df_prev_raw"]
         df_curr_raw = st.session_state["df_curr_raw"]
 
@@ -825,13 +587,9 @@ else:
 # ============================================================
 
 if st.sidebar.button("Logout"):
-
     st.session_state["logged_in"] = False
-
-    # Remove loaded Google data
     st.session_state.pop("df_prev_raw", None)
     st.session_state.pop("df_curr_raw", None)
-
     st.rerun()
 
 
@@ -840,12 +598,10 @@ if st.sidebar.button("Logout"):
 # ============================================================
 
 if df_prev_raw is None or df_curr_raw is None:
-
     st.info(
         "💡 Please upload both previous and current month "
         "files or load the Google Sheets data from the sidebar."
     )
-
     st.stop()
 
 
@@ -854,38 +610,19 @@ if df_prev_raw is None or df_curr_raw is None:
 # ============================================================
 
 with st.spinner("Cleaning and validating data..."):
-
     try:
+        df_prev_global = clean_data(df_prev_raw)
+        df_curr_global = clean_data(df_curr_raw)
 
-        df_prev_global = clean_data(
-            df_prev_raw
-        )
-
-        df_curr_global = clean_data(
-            df_curr_raw
-        )
-
-        # Release raw copies immediately.
         del df_prev_raw
         del df_curr_raw
-
         gc.collect()
 
-        # Protect all future merges.
-        df_prev_global = consolidate_duplicate_customers(
-            df_prev_global
-        )
-
-        df_curr_global = consolidate_duplicate_customers(
-            df_curr_global
-        )
+        df_prev_global = consolidate_duplicate_customers(df_prev_global)
+        df_curr_global = consolidate_duplicate_customers(df_curr_global)
 
     except Exception as e:
-
-        st.error(
-            f"❌ Error processing the data: {e}"
-        )
-
+        st.error(f"❌ Error processing the data: {e}")
         st.stop()
 
 
@@ -894,65 +631,36 @@ with st.spinner("Cleaning and validating data..."):
 # ============================================================
 
 prev_active_accounts = df_prev_global[
-    df_prev_global["Status"]
-    .str.upper()
-    .eq("ACTIVE")
+    df_prev_global["Status"].str.upper().eq("ACTIVE")
 ]
 
 curr_active_accounts = df_curr_global[
-    df_curr_global["Status"]
-    .str.upper()
-    .eq("ACTIVE")
+    df_curr_global["Status"].str.upper().eq("ACTIVE")
 ]
 
-prev_active_count = len(
-    prev_active_accounts
-)
-
-curr_active_count = len(
-    curr_active_accounts
-)
+prev_active_count = len(prev_active_accounts)
+curr_active_count = len(curr_active_accounts)
 
 if prev_active_count > 0:
-
     variation_active = (
-        (curr_active_count - prev_active_count)
-        / prev_active_count
-        * 100
+        (curr_active_count - prev_active_count) / prev_active_count * 100
     )
-
-    variation_str_active = (
-        f"{variation_active:+.2f}%"
-    )
-
+    variation_str_active = f"{variation_active:+.2f}%"
 else:
-
     variation_str_active = "N/A"
 
+total_balance_active_curr = curr_active_accounts.loc[
+    curr_active_accounts["Total Balance"] != 0, "Total Balance"
+].sum()
 
-total_balance_active_curr = (
-    curr_active_accounts.loc[
-        curr_active_accounts["Total Balance"] != 0,
-        "Total Balance"
-    ].sum()
-)
-
-
-st.subheader(
-    "📌 General Portfolio Summary"
-)
+st.subheader("📌 General Portfolio Summary")
 
 col1, col2, col3 = st.columns(3)
 
 with col1:
-
-    st.metric(
-        "Active Accounts (Previous Month)",
-        f"{prev_active_count:,}"
-    )
+    st.metric("Active Accounts (Previous Month)", f"{prev_active_count:,}")
 
 with col2:
-
     st.metric(
         f"Active Accounts ({report_period_str})",
         f"{curr_active_count:,}",
@@ -960,7 +668,6 @@ with col2:
     )
 
 with col3:
-
     st.metric(
         f"Total Active Balance ({report_period_str})",
         f"${total_balance_active_curr:,.2f}"
@@ -974,156 +681,70 @@ st.write("---")
 # ============================================================
 
 available_statuses = sorted(
-    set(
-        df_prev_global["Status"].unique()
-    ).union(
+    set(df_prev_global["Status"].unique()).union(
         set(df_curr_global["Status"].unique())
     )
 )
 
 selected_statuses = available_statuses
 
-if (
-    available_statuses
-    and available_statuses != ["Unspecified"]
-):
-
+if available_statuses and available_statuses != ["Unspecified"]:
     selected_statuses = st.sidebar.multiselect(
         "Filter Tables by Status (Column G)",
         options=available_statuses,
         default=available_statuses
     )
 
-
 if selected_statuses:
-
-    df_prev_clean = df_prev_global[
-        df_prev_global["Status"]
-        .isin(selected_statuses)
-    ]
-
-    df_curr_clean = df_curr_global[
-        df_curr_global["Status"]
-        .isin(selected_statuses)
-    ]
-
+    df_prev_clean = df_prev_global[df_prev_global["Status"].isin(selected_statuses)]
+    df_curr_clean = df_curr_global[df_curr_global["Status"].isin(selected_statuses)]
 else:
-
     df_prev_clean = df_prev_global.iloc[0:0]
     df_curr_clean = df_curr_global.iloc[0:0]
 
-
-df_prev_open = df_prev_clean[
-    df_prev_clean["Total Balance"] != 0
-]
-
-df_curr_open = df_curr_clean[
-    df_curr_clean["Total Balance"] != 0
-]
+df_prev_open = df_prev_clean[df_prev_clean["Total Balance"] != 0]
+df_curr_open = df_curr_clean[df_curr_clean["Total Balance"] != 0]
 
 
 # ============================================================
 # 18. ANALYST TRANSITIONS
 # ============================================================
 
-st.subheader(
-    "🔄 Credit Analyst Assignment Transitions"
-)
-
+st.subheader("🔄 Credit Analyst Assignment Transitions")
 st.markdown(
-    "These are the accounts that transitioned strictly "
-    "**from one specific credit analyst to another** "
+    "These are the accounts that transitioned strictly **from one specific credit analyst to another** "
     "(excluding unassigned states or None)."
 )
 
-
 prev_transition = df_prev_clean[
-    [
-        "Customer",
-        "Credit Analyst",
-        "Total Past Due",
-        "Total Balance"
-    ]
+    ["Customer", "Credit Analyst", "Total Past Due", "Total Balance"]
 ]
-
 curr_transition = df_curr_clean[
-    [
-        "Customer",
-        "Customer Name",
-        "Credit Analyst",
-        "Total Past Due",
-        "Total Balance"
-    ]
+    ["Customer", "Customer Name", "Credit Analyst", "Total Past Due", "Total Balance"]
 ]
-
 
 df_comparison = pd.merge(
     prev_transition,
     curr_transition,
     on="Customer",
-    suffixes=(
-        "_Previous",
-        "_Current"
-    ),
+    suffixes=("_Previous", "_Current"),
     how="inner"
 )
 
-
-df_comparison[
-    "Credit Analyst_Previous"
-] = (
-    df_comparison[
-        "Credit Analyst_Previous"
-    ]
-    .fillna("")
-    .astype(str)
-    .str.strip()
+df_comparison["Credit Analyst_Previous"] = (
+    df_comparison["Credit Analyst_Previous"].fillna("").astype(str).str.strip()
 )
-
-
-df_comparison[
-    "Credit Analyst_Current"
-] = (
-    df_comparison[
-        "Credit Analyst_Current"
-    ]
-    .fillna("")
-    .astype(str)
-    .str.strip()
+df_comparison["Credit Analyst_Current"] = (
+    df_comparison["Credit Analyst_Current"].fillna("").astype(str).str.strip()
 )
-
 
 df_analyst_changes = df_comparison[
-    (
-        df_comparison[
-            "Credit Analyst_Previous"
-        ]
-        !=
-        df_comparison[
-            "Credit Analyst_Current"
-        ]
-    )
-    &
-    (
-        ~df_comparison[
-            "Credit Analyst_Previous"
-        ]
-        .str.upper()
-        .isin(INVALID_ANALYST_STATES)
-    )
-    &
-    (
-        ~df_comparison[
-            "Credit Analyst_Current"
-        ]
-        .str.upper()
-        .isin(INVALID_ANALYST_STATES)
-    )
+    (df_comparison["Credit Analyst_Previous"] != df_comparison["Credit Analyst_Current"])
+    & (~df_comparison["Credit Analyst_Previous"].str.upper().isin(INVALID_ANALYST_STATES))
+    & (~df_comparison["Credit Analyst_Current"].str.upper().isin(INVALID_ANALYST_STATES))
 ]
 
-
 if not df_analyst_changes.empty:
-
     df_changes_formatted = (
         df_analyst_changes[
             [
@@ -1137,73 +758,37 @@ if not df_analyst_changes.empty:
         ]
         .rename(
             columns={
-                "Credit Analyst_Previous":
-                    "Previous Analyst",
-
-                "Credit Analyst_Current":
-                    "Current Analyst",
-
-                "Total Past Due_Current":
-                    "Total Past Due",
-
-                "Total Balance_Current":
-                    "Total Balance"
+                "Credit Analyst_Previous": "Previous Analyst",
+                "Credit Analyst_Current": "Current Analyst",
+                "Total Past Due_Current": "Total Past Due",
+                "Total Balance_Current": "Total Balance"
             }
         )
     )
 
     st.dataframe(
         df_changes_formatted.style.format(
-            {
-                "Total Past Due":
-                    "${:,.2f}",
-
-                "Total Balance":
-                    "${:,.2f}"
-            }
+            {"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"}
         ),
         use_container_width=True
     )
 
-    transferred_past_due = (
-        df_analyst_changes[
-            "Total Past Due_Current"
-        ].sum()
-    )
-
-    transferred_balance = (
-        df_analyst_changes[
-            "Total Balance_Current"
-        ].sum()
-    )
-
-    transferred_count = len(
-        df_analyst_changes
-    )
+    transferred_past_due = df_analyst_changes["Total Past Due_Current"].sum()
+    transferred_balance = df_analyst_changes["Total Balance_Current"].sum()
+    transferred_count = len(df_analyst_changes)
 
     st.info(
-        f"💰 **Financial Impact of Assignments:** "
-        f"Identified **{transferred_count:,}** accounts "
-        f"transferred between valid analysts for "
-        f"{report_period_str}, representing "
-        f"**${transferred_balance:,.2f}** in Total Balance "
-        f"and **${transferred_past_due:,.2f}** in Total Past Due."
+        f"💰 **Financial Impact of Assignments:** Identified **{transferred_count:,}** accounts "
+        f"transferred between valid analysts for {report_period_str}, representing "
+        f"**${transferred_balance:,.2f}** in Total Balance and **${transferred_past_due:,.2f}** in Total Past Due."
     )
-
 else:
-
     df_changes_formatted = pd.DataFrame()
-
     transferred_count = 0
     transferred_past_due = 0
     transferred_balance = 0
 
-    st.info(
-        f"✅ No credit analyst assignment transitions "
-        f"were detected between valid analysts for "
-        f"{report_period_str}."
-    )
-
+    st.info(f"✅ No credit analyst assignment transitions detected for {report_period_str}.")
 
 del df_comparison
 gc.collect()
@@ -1215,85 +800,37 @@ st.write("---")
 # 19. NEW ACCOUNTS
 # ============================================================
 
-st.subheader(
-    "✨ New Accounts of the Month"
-)
-
+st.subheader("✨ New Accounts of the Month")
 st.markdown(
-    f"These are new active accounts identified in "
-    f"**{report_period_str}** with open AR that did not "
+    f"These are new active accounts identified in **{report_period_str}** with open AR that did not "
     f"exist in the previous month report."
 )
 
+prev_customer_ids = set(df_prev_clean["Customer"].unique())
+df_new_accounts = df_curr_open[~df_curr_open["Customer"].isin(prev_customer_ids)]
 
-prev_customer_ids = set(
-    df_prev_clean["Customer"].unique()
-)
-
-df_new_accounts = df_curr_open[
-    ~df_curr_open["Customer"]
-    .isin(prev_customer_ids)
-]
-
-
-new_accounts_count = len(
-    df_new_accounts
-)
-
-new_accounts_balance = (
-    df_new_accounts["Total Balance"].sum()
-)
-
+new_accounts_count = len(df_new_accounts)
+new_accounts_balance = df_new_accounts["Total Balance"].sum()
 
 if not df_new_accounts.empty:
-
-    df_new_formatted = (
-        df_new_accounts[
-            [
-                "Customer",
-                "Customer Name",
-                "Z-Group",
-                "Credit Analyst",
-                "Total Past Due",
-                "Total Balance"
-            ]
-        ]
-        .rename(
-            columns={
-                "Credit Analyst": "Analyst"
-            }
-        )
-    )
+    df_new_formatted = df_new_accounts[
+        ["Customer", "Customer Name", "Z-Group", "Credit Analyst", "Total Past Due", "Total Balance"]
+    ].rename(columns={"Credit Analyst": "Analyst"})
 
     st.dataframe(
         df_new_formatted.style.format(
-            {
-                "Total Past Due":
-                    "${:,.2f}",
-
-                "Total Balance":
-                    "${:,.2f}"
-            }
+            {"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"}
         ),
         use_container_width=True
     )
 
     st.info(
-        f"New Accounts Impact: Identified "
-        f"{new_accounts_count:,} new open AR accounts in "
-        f"{report_period_str} with a combined balance of "
-        f"${new_accounts_balance:,.2f}."
+        f"New Accounts Impact: Identified {new_accounts_count:,} new open AR accounts in "
+        f"{report_period_str} with a combined balance of ${new_accounts_balance:,.2f}."
     )
-
 else:
-
     df_new_formatted = pd.DataFrame()
-
-    st.info(
-        f"No new open AR accounts were identified for "
-        f"{report_period_str}."
-    )
-
+    st.info(f"No new open AR accounts identified for {report_period_str}.")
 
 st.write("---")
 
@@ -1302,103 +839,39 @@ st.write("---")
 # 20. UNASSIGNED ACCOUNTS
 # ============================================================
 
-st.subheader(
-    "⚠️ Unassigned Accounts"
-)
-
+st.subheader("⚠️ Unassigned Accounts")
 st.markdown(
-    f"These are **{report_period_str}** accounts with "
-    f"an open balance where **BOTH Z-Group and Credit "
-    f"Analyst are empty or unassigned**."
+    f"These are **{report_period_str}** accounts with an open balance where "
+    f"**BOTH Z-Group and Credit Analyst are empty or unassigned**."
 )
 
+zgroup_invalid_mask = df_curr_open["Z-Group"].astype(str).str.strip().str.upper().isin(INVALID_ZGROUP_STATES)
+analyst_invalid_mask = df_curr_open["Credit Analyst"].astype(str).str.strip().str.upper().isin(INVALID_ANALYST_STATES)
 
-zgroup_invalid_mask = (
-    df_curr_open["Z-Group"]
-    .astype(str)
-    .str.strip()
-    .str.upper()
-    .isin(INVALID_ZGROUP_STATES)
-)
+df_unassigned = df_curr_open[zgroup_invalid_mask & analyst_invalid_mask]
 
-analyst_invalid_mask = (
-    df_curr_open["Credit Analyst"]
-    .astype(str)
-    .str.strip()
-    .str.upper()
-    .isin(INVALID_ANALYST_STATES)
-)
-
-
-df_unassigned = df_curr_open[
-    zgroup_invalid_mask
-    &
-    analyst_invalid_mask
-]
-
-
-unassigned_count = len(
-    df_unassigned
-)
-
-unassigned_balance_sum = (
-    df_unassigned["Total Balance"].sum()
-)
-
+unassigned_count = len(df_unassigned)
+unassigned_balance_sum = df_unassigned["Total Balance"].sum()
 
 if not df_unassigned.empty:
-
-    df_unassigned_formatted = (
-        df_unassigned[
-            [
-                "Customer",
-                "Customer Name",
-                "Status",
-                "Z-Group",
-                "Credit Analyst",
-                "Total Past Due",
-                "Total Balance"
-            ]
-        ]
-        .rename(
-            columns={
-                "Credit Analyst":
-                    "Assigned Status"
-            }
-        )
-    )
+    df_unassigned_formatted = df_unassigned[
+        ["Customer", "Customer Name", "Status", "Z-Group", "Credit Analyst", "Total Past Due", "Total Balance"]
+    ].rename(columns={"Credit Analyst": "Assigned Status"})
 
     st.dataframe(
         df_unassigned_formatted.style.format(
-            {
-                "Total Past Due":
-                    "${:,.2f}",
-
-                "Total Balance":
-                    "${:,.2f}"
-            }
+            {"Total Past Due": "${:,.2f}", "Total Balance": "${:,.2f}"}
         ),
         use_container_width=True
     )
 
     st.info(
-        f"Total Exposure Unassigned: There are "
-        f"{unassigned_count:,} accounts in "
-        f"{report_period_str} with open balance missing "
-        f"BOTH Z-Group and Credit Analyst, representing a "
-        f"total of ${unassigned_balance_sum:,.2f}."
+        f"Total Exposure Unassigned: There are {unassigned_count:,} accounts in {report_period_str} "
+        f"with open balance missing BOTH Z-Group and Credit Analyst (${unassigned_balance_sum:,.2f})."
     )
-
 else:
-
     df_unassigned_formatted = pd.DataFrame()
-
-    st.info(
-        f"Great! No active open-balance accounts were found "
-        f"with both Z-Group and Credit Analyst empty in "
-        f"{report_period_str}."
-    )
-
+    st.info(f"Great! No active open-balance accounts unassigned in {report_period_str}.")
 
 st.write("---")
 
@@ -1407,267 +880,89 @@ st.write("---")
 # 21. ANALYST PORTFOLIO DISTRIBUTION
 # ============================================================
 
-st.subheader(
-    "👥 Analyst Portfolio Distribution & Monthly Variation"
-)
-
+st.subheader("👥 Analyst Portfolio Distribution & Monthly Variation")
 
 prev_valid_analysts = df_prev_global[
-    ~df_prev_global["Credit Analyst"]
-    .astype(str)
-    .str.strip()
-    .str.upper()
-    .isin(INVALID_ANALYST_STATES)
+    ~df_prev_global["Credit Analyst"].astype(str).str.strip().str.upper().isin(INVALID_ANALYST_STATES)
 ]
-
-
 curr_valid_analysts = df_curr_global[
-    ~df_curr_global["Credit Analyst"]
-    .astype(str)
-    .str.strip()
-    .str.upper()
-    .isin(INVALID_ANALYST_STATES)
+    ~df_curr_global["Credit Analyst"].astype(str).str.strip().str.upper().isin(INVALID_ANALYST_STATES)
 ]
 
+prev_total_all = prev_valid_analysts.groupby("Credit Analyst").agg(Total_Prev_All=("Customer", "count")).reset_index()
+curr_total_all = curr_valid_analysts.groupby("Credit Analyst").agg(Total_Curr_All=("Customer", "count")).reset_index()
 
-prev_total_all = (
-    prev_valid_analysts
-    .groupby("Credit Analyst")
-    .agg(
-        Total_Prev_All=("Customer", "count")
-    )
-    .reset_index()
-)
+prev_open_active = prev_valid_analysts[(prev_valid_analysts["Total Balance"] != 0) & (prev_valid_analysts["Status"].str.upper().eq("ACTIVE"))]
+curr_open_active = curr_valid_analysts[(curr_valid_analysts["Total Balance"] != 0) & (curr_valid_analysts["Status"].str.upper().eq("ACTIVE"))]
 
+prev_open_active_dist = prev_open_active.groupby("Credit Analyst").agg(Open_AR_Prev_Active=("Customer", "count")).reset_index()
+curr_open_active_dist = curr_open_active.groupby("Credit Analyst").agg(
+    Open_AR_Curr_Active=("Customer", "count"),
+    Sum_Past_Due=("Total Past Due", "sum"),
+    Sum_Balance=("Total Balance", "sum")
+).reset_index()
 
-curr_total_all = (
-    curr_valid_analysts
-    .groupby("Credit Analyst")
-    .agg(
-        Total_Curr_All=("Customer", "count")
-    )
-    .reset_index()
-)
+df_dist_merged = pd.merge(curr_open_active_dist, prev_open_active_dist, on="Credit Analyst", how="outer")
+df_dist_merged = pd.merge(df_dist_merged, curr_total_all, on="Credit Analyst", how="outer")
+df_dist_merged = pd.merge(df_dist_merged, prev_total_all, on="Credit Analyst", how="outer")
 
-
-prev_open_active = prev_valid_analysts[
-    (
-        prev_valid_analysts["Total Balance"] != 0
-    )
-    &
-    (
-        prev_valid_analysts["Status"]
-        .str.upper()
-        .eq("ACTIVE")
-    )
-]
-
-
-curr_open_active = curr_valid_analysts[
-    (
-        curr_valid_analysts["Total Balance"] != 0
-    )
-    &
-    (
-        curr_valid_analysts["Status"]
-        .str.upper()
-        .eq("ACTIVE")
-    )
-]
-
-
-prev_open_active_dist = (
-    prev_open_active
-    .groupby("Credit Analyst")
-    .agg(
-        Open_AR_Prev_Active=(
-            "Customer",
-            "count"
-        )
-    )
-    .reset_index()
-)
-
-
-curr_open_active_dist = (
-    curr_open_active
-    .groupby("Credit Analyst")
-    .agg(
-        Open_AR_Curr_Active=(
-            "Customer",
-            "count"
-        ),
-
-        Sum_Past_Due=(
-            "Total Past Due",
-            "sum"
-        ),
-
-        Sum_Balance=(
-            "Total Balance",
-            "sum"
-        )
-    )
-    .reset_index()
-)
-
-
-df_dist_merged = pd.merge(
-    curr_open_active_dist,
-    prev_open_active_dist,
-    on="Credit Analyst",
-    how="outer"
-)
-
-
-df_dist_merged = pd.merge(
-    df_dist_merged,
-    curr_total_all,
-    on="Credit Analyst",
-    how="outer"
-)
-
-
-df_dist_merged = pd.merge(
-    df_dist_merged,
-    prev_total_all,
-    on="Credit Analyst",
-    how="outer"
-)
-
-
-numeric_columns = [
-    "Open_AR_Prev_Active",
-    "Open_AR_Curr_Active",
-    "Total_Curr_All",
-    "Total_Prev_All",
-    "Sum_Past_Due",
-    "Sum_Balance"
-]
-
-
-for col in numeric_columns:
-
+for col in ["Open_AR_Prev_Active", "Open_AR_Curr_Active", "Total_Curr_All", "Total_Prev_All", "Sum_Past_Due", "Sum_Balance"]:
     if col in df_dist_merged.columns:
+        df_dist_merged[col] = pd.to_numeric(df_dist_merged[col], errors="coerce").fillna(0)
 
-        df_dist_merged[col] = (
-            pd.to_numeric(
-                df_dist_merged[col],
-                errors="coerce"
-            )
-            .fillna(0)
-        )
+df_dist_merged["Account_Diff"] = df_dist_merged["Open_AR_Curr_Active"] - df_dist_merged["Open_AR_Prev_Active"]
 
+prev_counts = df_dist_merged["Open_AR_Prev_Active"]
+curr_counts = df_dist_merged["Open_AR_Curr_Active"]
 
-df_dist_merged["Account_Diff"] = (
-    df_dist_merged["Open_AR_Curr_Active"]
-    -
-    df_dist_merged["Open_AR_Prev_Active"]
-)
-
-
-prev_counts = (
-    df_dist_merged[
-        "Open_AR_Prev_Active"
-    ]
-)
-
-curr_counts = (
-    df_dist_merged[
-        "Open_AR_Curr_Active"
-    ]
-)
-
-
-df_dist_merged["Open AR % Change"] = np.where(
+pct_change = np.where(
     prev_counts > 0,
-    (
-        (
-            curr_counts - prev_counts
-        )
-        /
-        prev_counts
-        *
-        100
-    )
-    .map(lambda x: f"{x:+.2f}%"),
-
-    np.where(
-        curr_counts > 0,
-        "New (+100%)",
-        "0.00%"
-    )
+    ((curr_counts - prev_counts) / prev_counts * 100),
+    np.nan
 )
 
+df_dist_merged["Open AR % Change"] = [
+    f"{val:+.2f}%" if not np.isnan(val) else ("New (+100%)" if curr > 0 else "0.00%")
+    for val, curr in zip(pct_change, curr_counts)
+]
 
-df_dist_merged = df_dist_merged.sort_values(
-    by="Open_AR_Curr_Active",
-    ascending=False
-)
+df_dist_merged = df_dist_merged.sort_values(by="Open_AR_Curr_Active", ascending=False)
 
-
-df_dist_final = (
-    df_dist_merged[
-        [
-            "Credit Analyst",
-            "Total_Prev_All",
-            "Total_Curr_All",
-            "Open_AR_Prev_Active",
-            "Open_AR_Curr_Active",
-            "Open AR % Change",
-            "Sum_Past_Due",
-            "Sum_Balance"
-        ]
+df_dist_final = df_dist_merged[
+    [
+        "Credit Analyst",
+        "Total_Prev_All",
+        "Total_Curr_All",
+        "Open_AR_Prev_Active",
+        "Open_AR_Curr_Active",
+        "Open AR % Change",
+        "Sum_Past_Due",
+        "Sum_Balance"
     ]
-    .rename(
-        columns={
-            "Total_Prev_All":
-                "Prev Accounts (All)",
-
-            "Total_Curr_All":
-                "Curr Accounts (All)",
-
-            "Open_AR_Prev_Active":
-                "Prev Acc Open AR",
-
-            "Open_AR_Curr_Active":
-                "Curr Acc Open AR",
-
-            "Sum_Past_Due":
-                "Total Past Due",
-
-            "Sum_Balance":
-                "Total Balance"
-        }
-    )
+].rename(
+    columns={
+        "Total_Prev_All": "Prev Accounts (All)",
+        "Total_Curr_All": "Curr Accounts (All)",
+        "Open_AR_Prev_Active": "Prev Acc Open AR",
+        "Open_AR_Curr_Active": "Curr Acc Open AR",
+        "Sum_Past_Due": "Total Past Due",
+        "Sum_Balance": "Total Balance"
+    }
 )
-
 
 st.dataframe(
     df_dist_final.style.format(
         {
-            "Prev Accounts (All)":
-                "{:,.0f}",
-
-            "Curr Accounts (All)":
-                "{:,.0f}",
-
-            "Prev Acc Open AR":
-                "{:,.0f}",
-
-            "Curr Acc Open AR":
-                "{:,.0f}",
-
-            "Total Past Due":
-                "${:,.2f}",
-
-            "Total Balance":
-                "${:,.2f}"
+            "Prev Accounts (All)": "{:,.0f}",
+            "Curr Accounts (All)": "{:,.0f}",
+            "Prev Acc Open AR": "{:,.0f}",
+            "Curr Acc Open AR": "{:,.0f}",
+            "Total Past Due": "${:,.2f}",
+            "Total Balance": "${:,.2f}"
         }
     ),
     use_container_width=True
 )
-
 
 st.write("---")
 
@@ -1676,50 +971,19 @@ st.write("---")
 # 22. EXECUTIVE SUMMARY
 # ============================================================
 
-st.subheader(
-    f"📋 Executive Summary & Insights "
-    f"({report_period_str})"
-)
-
+st.subheader(f"📋 Executive Summary & Insights ({report_period_str})")
 
 if not df_dist_merged.empty:
+    top_vol_row = df_dist_merged.loc[df_dist_merged["Open_AR_Curr_Active"].idxmax()]
+    top_vol_analyst = top_vol_row["Credit Analyst"]
+    top_vol_count = int(top_vol_row["Open_AR_Curr_Active"])
 
-    top_vol_row = df_dist_merged.loc[
-        df_dist_merged[
-            "Open_AR_Curr_Active"
-        ].idxmax()
-    ]
-
-    top_vol_analyst = (
-        top_vol_row["Credit Analyst"]
-    )
-
-    top_vol_count = int(
-        top_vol_row[
-            "Open_AR_Curr_Active"
-        ]
-    )
-
-
-    top_exp_row = df_dist_merged.loc[
-        df_dist_merged[
-            "Sum_Balance"
-        ].idxmax()
-    ]
-
-    top_exp_analyst = (
-        top_exp_row["Credit Analyst"]
-    )
-
-    top_exp_balance = (
-        top_exp_row["Sum_Balance"]
-    )
-
+    top_exp_row = df_dist_merged.loc[df_dist_merged["Sum_Balance"].idxmax()]
+    top_exp_analyst = top_exp_row["Credit Analyst"]
+    top_exp_balance = top_exp_row["Sum_Balance"]
 else:
-
     top_vol_analyst = "N/A"
     top_vol_count = 0
-
     top_exp_analyst = "N/A"
     top_exp_balance = 0
 
@@ -1728,126 +992,36 @@ else:
 # 23. LOST ACCOUNTS
 # ============================================================
 
-account_match_prev = df_prev_global[
-    [
-        "Customer",
-        "Credit Analyst"
-    ]
-]
-
-
-account_match_curr = df_curr_global[
-    [
-        "Customer",
-        "Credit Analyst",
-        "Total Balance"
-    ]
-]
-
+account_match_prev = df_prev_global[["Customer", "Credit Analyst"]]
+account_match_curr = df_curr_global[["Customer", "Credit Analyst", "Total Balance"]]
 
 df_account_match = pd.merge(
     account_match_prev,
     account_match_curr,
     on="Customer",
-    suffixes=(
-        "_Prev",
-        "_Curr"
-    ),
+    suffixes=("_Prev", "_Curr"),
     how="inner"
 )
 
-
-df_account_match[
-    "Credit Analyst_Prev"
-] = (
-    df_account_match[
-        "Credit Analyst_Prev"
-    ]
-    .fillna("")
-    .astype(str)
-    .str.strip()
-)
-
-
-df_account_match[
-    "Credit Analyst_Curr"
-] = (
-    df_account_match[
-        "Credit Analyst_Curr"
-    ]
-    .fillna("")
-    .astype(str)
-    .str.strip()
-)
-
+df_account_match["Credit Analyst_Prev"] = df_account_match["Credit Analyst_Prev"].fillna("").astype(str).str.strip()
+df_account_match["Credit Analyst_Curr"] = df_account_match["Credit Analyst_Curr"].fillna("").astype(str).str.strip()
 
 df_lost_accounts = df_account_match[
-    (
-        ~df_account_match[
-            "Credit Analyst_Prev"
-        ]
-        .str.upper()
-        .isin(INVALID_ANALYST_STATES)
-    )
-    &
-    (
-        df_account_match[
-            "Credit Analyst_Prev"
-        ]
-        !=
-        df_account_match[
-            "Credit Analyst_Curr"
-        ]
-    )
+    (~df_account_match["Credit Analyst_Prev"].str.upper().isin(INVALID_ANALYST_STATES))
+    & (df_account_match["Credit Analyst_Prev"] != df_account_match["Credit Analyst_Curr"])
 ]
 
-
-lost_summary = (
-    df_lost_accounts
-    .groupby("Credit Analyst_Prev")
-    .agg(
-        Lost_Count=(
-            "Customer",
-            "count"
-        ),
-
-        Lost_Balance_Current=(
-            "Total Balance",
-            "sum"
-        )
-    )
-    .reset_index()
-)
-
+lost_summary = df_lost_accounts.groupby("Credit Analyst_Prev").agg(
+    Lost_Count=("Customer", "count"),
+    Lost_Balance_Current=("Total Balance", "sum")
+).reset_index()
 
 if not lost_summary.empty:
-
-    max_lost_row = lost_summary.loc[
-        lost_summary[
-            "Lost_Count"
-        ].idxmax()
-    ]
-
-    lost_analyst = (
-        max_lost_row[
-            "Credit Analyst_Prev"
-        ]
-    )
-
-    accounts_lost = int(
-        max_lost_row[
-            "Lost_Count"
-        ]
-    )
-
-    lost_balance_real = (
-        max_lost_row[
-            "Lost_Balance_Current"
-        ]
-    )
-
+    max_lost_row = lost_summary.loc[lost_summary["Lost_Count"].idxmax()]
+    lost_analyst = max_lost_row["Credit Analyst_Prev"]
+    accounts_lost = int(max_lost_row["Lost_Count"])
+    lost_balance_real = max_lost_row["Lost_Balance_Current"]
 else:
-
     lost_analyst = "N/A"
     accounts_lost = 0
     lost_balance_real = 0
@@ -1857,62 +1031,35 @@ else:
 # 24. SUMMARY DISPLAY
 # ============================================================
 
-col_summary, col_notes = st.columns(
-    [2, 1]
-)
-
+col_summary, col_notes = st.columns([2, 1])
 
 with col_summary:
-
     summary_text = f"""
 - **Workload Leader:** **{top_vol_analyst}** manages the highest volume of active clients with **{top_vol_count:,}** accounts.
-
 - **Risk Exposure Leader:** **{top_exp_analyst}** holds the highest portfolio risk exposure totaling **${top_exp_balance:,.2f}** in Total Balance.
-
 """
-
     if accounts_lost > 0:
-
-        summary_text += f"""
-- **Highest Account Reduction:** **{lost_analyst}** had **{accounts_lost:,}** accounts removed from their portfolio in **{report_period_str}**, representing **${lost_balance_real:,.2f}** in Total Balance.
-
-"""
-
+        summary_text += f"- **Highest Account Reduction:** **{lost_analyst}** had **{accounts_lost:,}** accounts removed from their portfolio in **{report_period_str}**, representing **${lost_balance_real:,.2f}** in Total Balance.\n"
     else:
-
-        summary_text += f"""
-- **Highest Account Reduction:** No active analysts experienced account removals in **{report_period_str}**.
-
-"""
+        summary_text += f"- **Highest Account Reduction:** No active analysts experienced account removals in **{report_period_str}**.\n"
 
     summary_text += f"""
 - **New Clients Added:** Identified **{new_accounts_count:,}** brand-new client accounts in **{report_period_str}**, representing **${new_accounts_balance:,.2f}** in open balance.
-
 - **Unassigned Portfolio:** There are **{unassigned_count:,}** unassigned accounts missing both Z-Group and Credit Analyst, representing **${unassigned_balance_sum:,.2f}**.
 """
-
     st.markdown(summary_text)
 
-
 with col_notes:
-
     if unassigned_count > 0:
-
         st.info(
-            f"⚠️ **Action Required:** "
-            f"Review and assign analyst ownership to the "
-            f"**{unassigned_count:,} unassigned accounts** "
-            f"as soon as possible to mitigate financial "
-            f"exposure of **${unassigned_balance_sum:,.2f}**."
+            f"⚠️ **Action Required:** Review and assign analyst ownership to the "
+            f"**{unassigned_count:,} unassigned accounts** as soon as possible "
+            f"(${unassigned_balance_sum:,.2f} exposure)."
         )
-
     else:
-
         st.info(
-            f"✅ **Outstanding:** "
-            f"All active open-balance accounts have assigned "
-            f"analysts in {report_period_str}. "
-            f"Zero unattended balance detected."
+            f"✅ **Outstanding:** All active open-balance accounts have assigned "
+            f"analysts in {report_period_str}."
         )
 
 
@@ -1921,470 +1068,89 @@ with col_notes:
 # ============================================================
 
 st.write("---")
-
-st.subheader(
-    "📥 Export & Download Report"
-)
+st.subheader("📥 Export & Download Report")
 
 
 def dataframe_to_html(df, currency_columns=None):
-
     if df is None or df.empty:
-
-        return (
-            '<div class="alert-box">'
-            'No records available.'
-            '</div>'
-        )
+        return '<div class="alert-box">No records available.</div>'
 
     styled = df.style
-
     if currency_columns:
-
         styled = styled.format(
-            {
-                col: "${:,.2f}"
-                for col in currency_columns
-                if col in df.columns
-            }
+            {col: "${:,.2f}" for col in currency_columns if col in df.columns}
         )
 
-    return (
-        '<div class="table-scroll-container">'
-        +
-        styled.to_html(
-            index=False,
-            classes="dataframe styled-table"
-        )
-        +
-        '</div>'
-    )
+    return f'<div class="table-scroll-container">{styled.to_html(index=False, classes="dataframe styled-table")}</div>'
 
 
 def build_html_report_data():
-
-    html_transitions = dataframe_to_html(
-        df_changes_formatted,
-        [
-            "Total Past Due",
-            "Total Balance"
-        ]
-    )
-
-    html_new_accounts = dataframe_to_html(
-        df_new_formatted,
-        [
-            "Total Past Due",
-            "Total Balance"
-        ]
-    )
-
-    html_unassigned = dataframe_to_html(
-        df_unassigned_formatted,
-        [
-            "Total Past Due",
-            "Total Balance"
-        ]
-    )
-
-    html_distribution = dataframe_to_html(
-        df_dist_final,
-        [
-            "Total Past Due",
-            "Total Balance"
-        ]
-    )
+    html_transitions = dataframe_to_html(df_changes_formatted, ["Total Past Due", "Total Balance"])
+    html_new_accounts = dataframe_to_html(df_new_formatted, ["Total Past Due", "Total Balance"])
+    html_unassigned = dataframe_to_html(df_unassigned_formatted, ["Total Past Due", "Total Balance"])
+    html_distribution = dataframe_to_html(df_dist_final, ["Total Past Due", "Total Balance"])
 
     return f"""<!DOCTYPE html>
-
 <html lang="en">
-
 <head>
-
 <meta charset="UTF-8">
-
-<title>
-Amrize - Z-Groups Tracker Elevate
-({report_period_str})
-</title>
-
+<title>Amrize - Z-Groups Tracker Elevate ({report_period_str})</title>
 <style>
-
-body {{
-    font-family:
-        'Inter',
-        -apple-system,
-        BlinkMacSystemFont,
-        'Segoe UI',
-        Roboto,
-        sans-serif;
-
-    background-color: #f8fafc;
-
-    color: #1e293b;
-
-    margin: 0;
-
-    padding: 30px;
-}}
-
-.header {{
-    margin-bottom: 24px;
-}}
-
-.title {{
-    font-size: 28px;
-    font-weight: 800;
-    color: #011e6a;
-    margin-bottom: 8px;
-}}
-
-.period-badge {{
-    display: inline-block;
-    background: #f0f5ff;
-    color: #011e6a;
-    padding: 8px 18px;
-    border-radius: 20px;
-    font-weight: 600;
-    font-size: 14px;
-    border: 1px solid #93c5fd;
-    margin-bottom: 20px;
-}}
-
-.kpi-container {{
-    display: flex;
-    gap: 15px;
-    margin-bottom: 30px;
-}}
-
-.kpi-card {{
-    flex: 1;
-    background: #f0f5ff;
-    border: 1px solid #dbeafe;
-    border-left: 6px solid #2563eb;
-    padding: 20px;
-    border-radius: 12px;
-}}
-
-.kpi-title {{
-    font-size: 12px;
-    color: #334155;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}}
-
-.kpi-value {{
-    font-size: 28px;
-    font-weight: 800;
-    color: #001fbe;
-    margin-top: 6px;
-}}
-
-.section-title {{
-    font-size: 20px;
-    font-weight: 700;
-    color: #011e6a;
-    margin: 30px 0 15px 0;
-}}
-
-.section-desc {{
-    font-size: 14px;
-    color: #64748b;
-    margin-top: -10px;
-    margin-bottom: 15px;
-}}
-
-.alert-box {{
-    background-color: #e0f2fe;
-    border: 1px solid #7dd3fc;
-    border-left: 6px solid #0284c7;
-    padding: 14px 18px;
-    color: #0369a1;
-    border-radius: 10px;
-    font-weight: 500;
-    font-size: 14px;
-    margin-top: 10px;
-    margin-bottom: 20px;
-}}
-
-.table-scroll-container {{
-    max-height: 380px;
-    overflow-y: auto;
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    margin-bottom: 10px;
-    background: white;
-}}
-
-.styled-table {{
-    width: 100%;
-    border-collapse: collapse;
-    background: white;
-}}
-
-.styled-table th,
-.styled-table td {{
-    padding: 12px 16px;
-    text-align: left;
-    font-size: 13px;
-    border-bottom: 1px solid #e2e8f0;
-}}
-
-.styled-table th {{
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background-color: #011e6a;
-    color: white;
-    font-weight: 700;
-}}
-
-.styled-table tr:nth-child(even) {{
-    background-color: #f8fafc;
-}}
-
-.styled-table tr:hover {{
-    background-color: #f1f5f9;
-}}
-
-.insights-grid {{
-    display: flex;
-    gap: 20px;
-    background: white;
-    padding: 20px;
-    border-radius: 12px;
-    border: 1px solid #e2e8f0;
-}}
-
-.insights-col {{
-    flex: 2;
-}}
-
-.notes-col {{
-    flex: 1;
-}}
-
-ul {{
-    line-height: 1.8;
-}}
-
+body {{ font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 30px; }}
+.title {{ font-size: 28px; font-weight: 800; color: #011e6a; margin-bottom: 8px; }}
+.period-badge {{ display: inline-block; background: #f0f5ff; color: #011e6a; padding: 8px 18px; border-radius: 20px; font-weight: 600; font-size: 14px; border: 1px solid #93c5fd; margin-bottom: 20px; }}
+.kpi-container {{ display: flex; gap: 15px; margin-bottom: 30px; }}
+.kpi-card {{ flex: 1; background: #f0f5ff; border: 1px solid #dbeafe; border-left: 6px solid #2563eb; padding: 20px; border-radius: 12px; }}
+.kpi-title {{ font-size: 12px; color: #334155; font-weight: 600; text-transform: uppercase; }}
+.kpi-value {{ font-size: 28px; font-weight: 800; color: #001fbe; margin-top: 6px; }}
+.section-title {{ font-size: 20px; font-weight: 700; color: #011e6a; margin: 30px 0 15px 0; }}
+.alert-box {{ background-color: #e0f2fe; border: 1px solid #7dd3fc; border-left: 6px solid #0284c7; padding: 14px 18px; color: #0369a1; border-radius: 10px; font-weight: 500; font-size: 14px; margin: 10px 0 20px 0; }}
+.table-scroll-container {{ max-height: 380px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 10px; background: white; }}
+.styled-table {{ width: 100%; border-collapse: collapse; background: white; }}
+.styled-table th, .styled-table td {{ padding: 12px 16px; text-align: left; font-size: 13px; border-bottom: 1px solid #e2e8f0; }}
+.styled-table th {{ position: sticky; top: 0; background-color: #011e6a; color: white; font-weight: 700; }}
+.styled-table tr:nth-child(even) {{ background-color: #f8fafc; }}
 </style>
-
 </head>
-
 <body>
-
-<div class="header">
-
-<div class="title">
-Z-Groups Tracker Elevate
-</div>
-
-<div class="period-badge">
-📅 Active Report Period:
-<strong>{report_period_str}</strong>
-</div>
-
-</div>
-
+<div class="title">Z-Groups Tracker Elevate</div>
+<div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>
 
 <div class="kpi-container">
-
-<div class="kpi-card">
-
-<div class="kpi-title">
-Active Accounts (Previous Month)
+    <div class="kpi-card">
+        <div class="kpi-title">Active Accounts (Previous Month)</div>
+        <div class="kpi-value">{prev_active_count:,}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-title">Active Accounts ({report_period_str})</div>
+        <div class="kpi-value">{curr_active_count:,}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-title">Total Active Balance ({report_period_str})</div>
+        <div class="kpi-value">${total_balance_active_curr:,.2f}</div>
+    </div>
 </div>
 
-<div class="kpi-value">
-{prev_active_count:,}
-</div>
-
-</div>
-
-
-<div class="kpi-card">
-
-<div class="kpi-title">
-Active Accounts ({report_period_str})
-</div>
-
-<div class="kpi-value">
-{curr_active_count:,}
-</div>
-
-</div>
-
-
-<div class="kpi-card">
-
-<div class="kpi-title">
-Total Active Balance ({report_period_str})
-</div>
-
-<div class="kpi-value">
-${total_balance_active_curr:,.2f}
-</div>
-
-</div>
-
-</div>
-
-
-<div class="section-title">
-🔄 Credit Analyst Assignment Transitions
-</div>
-
-<div class="section-desc">
-These are the accounts that transitioned strictly
-from one specific credit analyst to another.
-</div>
-
+<div class="section-title">🔄 Credit Analyst Assignment Transitions</div>
 {html_transitions}
 
-
-<div class="section-title">
-✨ New Accounts of the Month
-</div>
-
-<div class="section-desc">
-These are new active accounts identified in
-<strong>{report_period_str}</strong> with open AR
-that did not exist in the previous month report.
-</div>
-
+<div class="section-title">✨ New Accounts of the Month</div>
 {html_new_accounts}
+<div class="alert-box"><strong>New Accounts Impact:</strong> {new_accounts_count:,} accounts (${new_accounts_balance:,.2f}).</div>
 
-<div class="alert-box">
-
-<strong>New Accounts Impact:</strong>
-
-Identified
-<strong>{new_accounts_count:,}</strong>
-new open AR accounts in
-<strong>{report_period_str}</strong>
-with a combined balance of
-<strong>${new_accounts_balance:,.2f}</strong>.
-
-</div>
-
-
-<div class="section-title">
-⚠️ Unassigned Accounts
-</div>
-
-<div class="section-desc">
-These are
-<strong>{report_period_str}</strong>
-accounts with an open balance where BOTH
-Z-Group and Credit Analyst are empty or unassigned.
-</div>
-
+<div class="section-title">⚠️ Unassigned Accounts</div>
 {html_unassigned}
+<div class="alert-box"><strong>Total Exposure Unassigned:</strong> {unassigned_count:,} accounts (${unassigned_balance_sum:,.2f}).</div>
 
-<div class="alert-box">
-
-<strong>Total Exposure Unassigned:</strong>
-
-There are
-<strong>{unassigned_count:,}</strong>
-accounts in
-<strong>{report_period_str}</strong>
-with open balance missing BOTH
-Z-Group and Credit Analyst,
-representing a total of
-<strong>${unassigned_balance_sum:,.2f}</strong>.
-
-</div>
-
-
-<div class="section-title">
-👥 Analyst Portfolio Distribution
-</div>
-
+<div class="section-title">👥 Analyst Portfolio Distribution</div>
 {html_distribution}
-
-
-<div class="section-title">
-📋 Executive Summary & Insights
-({report_period_str})
-</div>
-
-<div class="insights-grid">
-
-<div class="insights-col">
-
-<ul>
-
-<li>
-<strong>Workload Leader:</strong>
-<strong>{top_vol_analyst}</strong>
-manages the highest volume of active clients
-with <strong>{top_vol_count:,}</strong> accounts.
-</li>
-
-<li>
-<strong>Risk Exposure Leader:</strong>
-<strong>{top_exp_analyst}</strong>
-holds the highest portfolio risk exposure
-totaling <strong>${top_exp_balance:,.2f}</strong>.
-</li>
-
-<li>
-<strong>Highest Account Reduction:</strong>
-<strong>{lost_analyst}</strong>
-had <strong>{accounts_lost:,}</strong>
-accounts removed.
-</li>
-
-<li>
-<strong>New Clients Added:</strong>
-<strong>{new_accounts_count:,}</strong>
-new accounts representing
-<strong>${new_accounts_balance:,.2f}</strong>.
-</li>
-
-<li>
-<strong>Unassigned Portfolio:</strong>
-<strong>{unassigned_count:,}</strong>
-accounts representing
-<strong>${unassigned_balance_sum:,.2f}</strong>.
-</li>
-
-</ul>
-
-</div>
-
-
-<div class="notes-col">
-
-<div class="alert-box">
-
-<strong>Action Required:</strong>
-
-Review unassigned accounts.
-
-</div>
-
-</div>
-
-</div>
-
 </body>
-
-</html>
-"""
+</html>"""
 
 
 st.download_button(
     label="📄 Download Report as HTML",
     data=build_html_report_data(),
-    file_name=(
-        f"Z_Groups_Report_"
-        f"{selected_month}_"
-        f"{selected_year}.html"
-    ),
+    file_name=f"Z_Groups_Report_{selected_month}_{selected_year}.html",
     mime="text/html"
 )
-```
