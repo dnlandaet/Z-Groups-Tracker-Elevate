@@ -411,12 +411,12 @@ def load_data_file(uploaded_file):
 
 
 # ============================================================
-# 8. DATA CLEANING
+# 8. DATA CLEANING (USANDO FLOAT64 PARA MANTENER PRECISIÓN EXACTA)
 # ============================================================
 
 def clean_currency_series(series):
     if series is None:
-        return pd.Series(dtype="float32")
+        return pd.Series(dtype="float64")
 
     return (
         series.astype(str)
@@ -424,8 +424,8 @@ def clean_currency_series(series):
         .str.strip()
         .replace({"nan": np.nan, "None": np.nan, "": np.nan})
         .pipe(pd.to_numeric, errors="coerce")
-        .fillna(0)
-        .astype("float32")
+        .fillna(0.0)
+        .astype("float64")  # Precisión de 64-bits para montos grandes
     )
 
 
@@ -649,9 +649,8 @@ if prev_active_count > 0:
 else:
     variation_str_active = "N/A"
 
-total_balance_active_curr = curr_active_accounts.loc[
-    curr_active_accounts["Total Balance"] != 0, "Total Balance"
-].sum()
+# Suma directa en float64 para preservar decimales exactos
+total_balance_active_curr = curr_active_accounts["Total Balance"].sum()
 
 st.subheader("📌 General Portfolio Summary")
 
@@ -1064,33 +1063,32 @@ with col_notes:
 
 
 # ============================================================
-# 25. HTML REPORT (CORREGIDO)
+# 25. HTML REPORT (EXACT LAYOUT & FORMATTING)
 # ============================================================
 
 st.write("---")
 st.subheader("📥 Export & Download Report")
 
+
 def build_html_report_data():
-    # 1. MANEJO CORRECTO DE LOGO EMBEDDED
     logo_html = ""
     if logo_file and os.path.exists(logo_file):
         import base64
         ext = logo_file.split(".")[-1].lower()
         mime_type = "image/svg+xml" if ext == "svg" else f"image/{ext}"
-        
+
         with open(logo_file, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
             logo_html = f'<img src="data:{mime_type};base64,{encoded_string}" style="max-width: 220px; height: auto; margin-bottom: 12px; display: block;" />'
     else:
         logo_html = '<div style="font-size: 28px; font-weight: 800; color: #011e6a; margin-bottom: 10px;">AMRIZE</div>'
 
-    # 2. FORMATO DE TABLA Y ENTEROS SIN DECIMALES EN CUENTAS
-    def render_custom_html_table(df, is_distribution=False):
+    def render_custom_html_table(df):
         if df is None or df.empty:
             return '<div class="alert-box">No records available.</div>'
 
         headers = "".join([f"<th>{col}</th>" for col in df.columns])
-        
+
         int_cols = ["Prev Accounts (All)", "Curr Accounts (All)", "Prev Acc Open AR", "Curr Acc Open AR"]
         curr_cols = ["Total Past Due", "Total Balance"]
 
@@ -1099,14 +1097,12 @@ def build_html_report_data():
             cells = ""
             for col in df.columns:
                 val = row[col]
-                
-                # Formato entero estricto para cuentas (sin decimales .0)
+
                 if col in int_cols:
                     try:
                         formatted_val = f"{int(round(float(val))):,}"
                     except (ValueError, TypeError):
                         formatted_val = str(val)
-                # Formato moneda
                 elif col in curr_cols:
                     try:
                         formatted_val = f"${float(val):,.2f}"
@@ -1130,7 +1126,7 @@ def build_html_report_data():
     html_transitions = render_custom_html_table(df_changes_formatted)
     html_new_accounts = render_custom_html_table(df_new_formatted)
     html_unassigned = render_custom_html_table(df_unassigned_formatted)
-    html_distribution = render_custom_html_table(df_dist_final, is_distribution=True)
+    html_distribution = render_custom_html_table(df_dist_final)
 
     if not df_analyst_changes.empty:
         trans_alert = f"💰 <strong>Financial Impact of Assignments:</strong> Identified <strong>{transferred_count:,}</strong> accounts transferred between valid analysts for {report_period_str}, representing <strong>${transferred_balance:,.2f}</strong> in Total Balance and <strong>${transferred_past_due:,.2f}</strong> in Total Past Due."
@@ -1389,6 +1385,7 @@ body {{
 
 </body>
 </html>"""
+
 
 st.download_button(
     label="📄 Download Report as HTML",
