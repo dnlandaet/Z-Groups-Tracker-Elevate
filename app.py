@@ -1071,24 +1071,60 @@ st.write("---")
 st.subheader("📥 Export & Download Report")
 
 
-def dataframe_to_html(df, currency_columns=None):
+def render_html_table(df, currency_cols=None):
     if df is None or df.empty:
         return '<div class="alert-box">No records available.</div>'
 
-    styled = df.style
-    if currency_columns:
-        styled = styled.format(
-            {col: "${:,.2f}" for col in currency_columns if col in df.columns}
-        )
+    df_display = df.copy()
+    if currency_cols:
+        for col in currency_cols:
+            if col in df_display.columns:
+                df_display[col] = df_display[col].apply(
+                    lambda x: f"${x:,.2f}" if isinstance(x, (int, float, np.number)) else x
+                )
 
-    return f'<div class="table-scroll-container">{styled.to_html(index=False, classes="dataframe styled-table")}</div>'
+    headers = "".join([f"<th>{col}</th>" for col in df_display.columns])
+    
+    rows = ""
+    for _, row in df_display.iterrows():
+        cells = "".join([f"<td>{val}</td>" for val in row])
+        rows += f"<tr>{cells}</tr>\n"
+
+    return f"""
+    <div class="table-scroll-container">
+        <table class="styled-table">
+            <thead>
+                <tr>{headers}</tr>
+            </thead>
+            <tbody>
+                {rows}
+            </tbody>
+        </table>
+    </div>
+    """
 
 
 def build_html_report_data():
-    html_transitions = dataframe_to_html(df_changes_formatted, ["Total Past Due", "Total Balance"])
-    html_new_accounts = dataframe_to_html(df_new_formatted, ["Total Past Due", "Total Balance"])
-    html_unassigned = dataframe_to_html(df_unassigned_formatted, ["Total Past Due", "Total Balance"])
-    html_distribution = dataframe_to_html(df_dist_final, ["Total Past Due", "Total Balance"])
+    logo_html = ""
+    if logo_file and os.path.exists(logo_file):
+        import base64
+        ext = logo_file.split(".")[-1]
+        with open(logo_file, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode()
+            logo_html = f'<img src="data:image/{ext};base64,{encoded_string}" style="width: 240px; margin-bottom: 15px;" />'
+    else:
+        logo_html = '<h1 style="color: #011e6a; margin: 0; font-size: 32px; font-weight: 800;">AMRIZE</h1>'
+
+    html_transitions = render_html_table(df_changes_formatted, ["Total Past Due", "Total Balance"])
+    html_new_accounts = render_html_table(df_new_formatted, ["Total Past Due", "Total Balance"])
+    html_unassigned = render_html_table(df_unassigned_formatted, ["Total Past Due", "Total Balance"])
+    html_distribution = render_html_table(df_dist_final, ["Total Past Due", "Total Balance"])
+
+    # Transición alert text
+    if not df_analyst_changes.empty:
+        trans_alert = f"💰 <strong>Financial Impact of Assignments:</strong> Identified <strong>{transferred_count:,}</strong> accounts transferred between valid analysts for {report_period_str}, representing <strong>${transferred_balance:,.2f}</strong> in Total Balance and <strong>${transferred_past_due:,.2f}</strong> in Total Past Due."
+    else:
+        trans_alert = f"✅ No credit analyst assignment transitions were detected between valid analysts for {report_period_str}."
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -1096,25 +1132,199 @@ def build_html_report_data():
 <meta charset="UTF-8">
 <title>Amrize - Z-Groups Tracker Elevate ({report_period_str})</title>
 <style>
-body {{ font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 30px; }}
-.title {{ font-size: 28px; font-weight: 800; color: #011e6a; margin-bottom: 8px; }}
-.period-badge {{ display: inline-block; background: #f0f5ff; color: #011e6a; padding: 8px 18px; border-radius: 20px; font-weight: 600; font-size: 14px; border: 1px solid #93c5fd; margin-bottom: 20px; }}
-.kpi-container {{ display: flex; gap: 15px; margin-bottom: 30px; }}
-.kpi-card {{ flex: 1; background: #f0f5ff; border: 1px solid #dbeafe; border-left: 6px solid #2563eb; padding: 20px; border-radius: 12px; }}
-.kpi-title {{ font-size: 12px; color: #334155; font-weight: 600; text-transform: uppercase; }}
-.kpi-value {{ font-size: 28px; font-weight: 800; color: #001fbe; margin-top: 6px; }}
-.section-title {{ font-size: 20px; font-weight: 700; color: #011e6a; margin: 30px 0 15px 0; }}
-.alert-box {{ background-color: #e0f2fe; border: 1px solid #7dd3fc; border-left: 6px solid #0284c7; padding: 14px 18px; color: #0369a1; border-radius: 10px; font-weight: 500; font-size: 14px; margin: 10px 0 20px 0; }}
-.table-scroll-container {{ max-height: 380px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 10px; background: white; }}
-.styled-table {{ width: 100%; border-collapse: collapse; background: white; }}
-.styled-table th, .styled-table td {{ padding: 12px 16px; text-align: left; font-size: 13px; border-bottom: 1px solid #e2e8f0; }}
-.styled-table th {{ position: sticky; top: 0; background-color: #011e6a; color: white; font-weight: 700; }}
-.styled-table tr:nth-child(even) {{ background-color: #f8fafc; }}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+body {{
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #f8fafc;
+    color: #1e293b;
+    margin: 0;
+    padding: 40px;
+}}
+
+.header-container {{
+    margin-bottom: 25px;
+}}
+
+.main-title {{
+    font-size: 28px;
+    font-weight: 800;
+    color: #011e6a;
+    margin-top: 5px;
+    margin-bottom: 12px;
+}}
+
+.period-badge {{
+    display: inline-block;
+    background: #f0f5ff;
+    color: #011e6a;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 13.5px;
+    border: 1px solid #93c5fd;
+    margin-bottom: 25px;
+}}
+
+.kpi-container {{
+    display: flex;
+    gap: 20px;
+    margin-bottom: 35px;
+}}
+
+.kpi-card {{
+    flex: 1;
+    background: #f0f5ff;
+    border: 1px solid #dbeafe;
+    border-left: 6px solid #2563eb;
+    padding: 22px;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}}
+
+.kpi-title {{
+    font-size: 12px;
+    color: #334155;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}}
+
+.kpi-value {{
+    font-size: 32px;
+    font-weight: 800;
+    color: #001fbe;
+    margin-top: 8px;
+}}
+
+.section-title {{
+    font-size: 20px;
+    font-weight: 700;
+    color: #011e6a;
+    margin: 35px 0 6px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}}
+
+.section-desc {{
+    font-size: 13.5px;
+    color: #64748b;
+    margin-bottom: 15px;
+}}
+
+.alert-box {{
+    background-color: #e0f2fe;
+    border: 1px solid #7dd3fc;
+    border-left: 6px solid #0284c7;
+    padding: 14px 20px;
+    color: #0369a1;
+    border-radius: 10px;
+    font-weight: 500;
+    font-size: 14px;
+    margin-top: 12px;
+    margin-bottom: 25px;
+}}
+
+.search-box {{
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 13.5px;
+    color: #64748b;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}}
+
+.table-scroll-container {{
+    max-height: 420px;
+    overflow-y: auto;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: white;
+    margin-bottom: 8px;
+}}
+
+.styled-table {{
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}}
+
+.styled-table th {{
+    position: sticky;
+    top: 0;
+    background-color: #011e6a;
+    color: white;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 12px 14px;
+    text-align: left;
+    border-right: 1px solid #1e3a8a;
+    z-index: 2;
+}}
+
+.styled-table td {{
+    padding: 11px 14px;
+    text-align: left;
+    font-size: 13px;
+    border-bottom: 1px solid #e2e8f0;
+    border-right: 1px solid #f1f5f9;
+    color: #1e293b;
+}}
+
+.styled-table tr:nth-child(even) {{
+    background-color: #f8fafc;
+}}
+
+.styled-table tr:hover {{
+    background-color: #f1f5f9;
+}}
+
+.insights-card {{
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 15px;
+    display: flex;
+    gap: 25px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}}
+
+.insights-left {{
+    flex: 2;
+}}
+
+.insights-right {{
+    flex: 1;
+}}
+
+.insights-list {{
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}}
+
+.insights-list li {{
+    font-size: 14.5px;
+    line-height: 1.8;
+    margin-bottom: 10px;
+    color: #334155;
+}}
+
 </style>
 </head>
 <body>
-<div class="title">Z-Groups Tracker Elevate</div>
-<div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>
+
+<div class="header-container">
+    {logo_html}
+    <div class="main-title">Z-Groups Tracker Elevate</div>
+    <div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>
+</div>
 
 <div class="kpi-container">
     <div class="kpi-card">
@@ -1132,18 +1342,40 @@ body {{ font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e2
 </div>
 
 <div class="section-title">🔄 Credit Analyst Assignment Transitions</div>
+<div class="section-desc">These are the accounts that transitioned strictly from one specific credit analyst to another (excluding unassigned states or None).</div>
 {html_transitions}
+<div class="alert-box">{trans_alert}</div>
 
 <div class="section-title">✨ New Accounts of the Month</div>
+<div class="section-desc">These are new active accounts identified in <strong>{report_period_str}</strong> with open AR that did not exist in the previous month report.</div>
 {html_new_accounts}
-<div class="alert-box"><strong>New Accounts Impact:</strong> {new_accounts_count:,} accounts (${new_accounts_balance:,.2f}).</div>
+<div class="alert-box"><strong>New Accounts Impact:</strong> Identified <strong>{new_accounts_count:,}</strong> new open AR accounts in <strong>{report_period_str}</strong> with a combined balance of <strong>${new_accounts_balance:,.2f}</strong>.</div>
 
 <div class="section-title">⚠️ Unassigned Accounts</div>
+<div class="section-desc">These are <strong>{report_period_str}</strong> accounts with an open balance where BOTH Z-Group and Credit Analyst are empty or unassigned.</div>
 {html_unassigned}
-<div class="alert-box"><strong>Total Exposure Unassigned:</strong> {unassigned_count:,} accounts (${unassigned_balance_sum:,.2f}).</div>
+<div class="alert-box"><strong>Total Exposure Unassigned:</strong> There are <strong>{unassigned_count:,}</strong> accounts in <strong>{report_period_str}</strong> with open balance missing BOTH Z-Group and Credit Analyst, representing a total of <strong>${unassigned_balance_sum:,.2f}</strong>.</div>
 
 <div class="section-title">👥 Analyst Portfolio Distribution</div>
+<div class="search-box">🔍 Search/Filter table by Analyst or Values...</div>
 {html_distribution}
+
+<div class="section-title">📋 Executive Summary & Insights ({report_period_str})</div>
+<div class="insights-card">
+    <div class="insights-left">
+        <ul class="insights-list">
+            <li>• <strong>Workload Leader:</strong> <strong>{top_vol_analyst}</strong> manages the highest volume of active clients with <strong>{top_vol_count:,}</strong> accounts.</li>
+            <li>• <strong>Risk Exposure Leader:</strong> <strong>{top_exp_analyst}</strong> holds the highest portfolio risk exposure totaling <strong>${top_exp_balance:,.2f}</strong> in Total Balance.</li>
+            {"<li>• <strong>Highest Account Reduction:</strong> <strong>" + str(lost_analyst) + "</strong> had <strong>" + f"{accounts_lost:,}" + "</strong> accounts removed representing <strong>$" + f"{lost_balance_real:,.2f}" + "</strong>.</li>" if accounts_lost > 0 else "<li>• <strong>Highest Account Reduction:</strong> No active analysts experienced account removals in " + report_period_str + ".</li>"}
+            <li>• <strong>New Clients Added:</strong> Identified <strong>{new_accounts_count:,}</strong> brand-new client accounts in <strong>{report_period_str}</strong>, representing <strong>${new_accounts_balance:,.2f}</strong> in open balance.</li>
+            <li>• <strong>Unassigned Portfolio:</strong> There are <strong>{unassigned_count:,}</strong> unassigned accounts missing both Z-Group and Credit Analyst, representing <strong>${unassigned_balance_sum:,.2f}</strong>.</li>
+        </ul>
+    </div>
+    <div class="insights-right">
+        {"<div class='alert-box' style='margin:0;'>⚠️ <strong>Action Required:</strong> Review unassigned accounts.</div>" if unassigned_count > 0 else "<div class='alert-box' style='margin:0;'>✅ <strong>Outstanding:</strong> All active open-balance accounts have assigned analysts.</div>"}
+    </div>
+</div>
+
 </body>
 </html>"""
 
