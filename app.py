@@ -1064,63 +1064,74 @@ with col_notes:
 
 
 # ============================================================
-# 25. HTML REPORT
+# 25. HTML REPORT (CORREGIDO)
 # ============================================================
 
 st.write("---")
 st.subheader("📥 Export & Download Report")
 
-
-def render_html_table(df, currency_cols=None):
-    if df is None or df.empty:
-        return '<div class="alert-box">No records available.</div>'
-
-    df_display = df.copy()
-    if currency_cols:
-        for col in currency_cols:
-            if col in df_display.columns:
-                df_display[col] = df_display[col].apply(
-                    lambda x: f"${x:,.2f}" if isinstance(x, (int, float, np.number)) else x
-                )
-
-    headers = "".join([f"<th>{col}</th>" for col in df_display.columns])
-    
-    rows = ""
-    for _, row in df_display.iterrows():
-        cells = "".join([f"<td>{val}</td>" for val in row])
-        rows += f"<tr>{cells}</tr>\n"
-
-    return f"""
-    <div class="table-scroll-container">
-        <table class="styled-table">
-            <thead>
-                <tr>{headers}</tr>
-            </thead>
-            <tbody>
-                {rows}
-            </tbody>
-        </table>
-    </div>
-    """
-
-
 def build_html_report_data():
+    # 1. MANEJO CORRECTO DE LOGO EMBEDDED
     logo_html = ""
     if logo_file and os.path.exists(logo_file):
         import base64
-        ext = logo_file.split(".")[-1]
+        ext = logo_file.split(".")[-1].lower()
+        mime_type = "image/svg+xml" if ext == "svg" else f"image/{ext}"
+        
         with open(logo_file, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode()
-            logo_html = f'<img src="data:image/{ext};base64,{encoded_string}" style="width: 240px; margin-bottom: 15px;" />'
+            logo_html = f'<img src="data:{mime_type};base64,{encoded_string}" style="max-width: 220px; height: auto; margin-bottom: 12px; display: block;" />'
     else:
-        logo_html = '<h1 style="color: #011e6a; margin: 0; font-size: 32px; font-weight: 800;">AMRIZE</h1>'
+        logo_html = '<div style="font-size: 28px; font-weight: 800; color: #011e6a; margin-bottom: 10px;">AMRIZE</div>'
 
-    html_transitions = render_html_table(df_changes_formatted, ["Total Past Due", "Total Balance"])
-    html_new_accounts = render_html_table(df_new_formatted, ["Total Past Due", "Total Balance"])
-    html_unassigned = render_html_table(df_unassigned_formatted, ["Total Past Due", "Total Balance"])
-    html_distribution = render_html_table(df_dist_final, ["Total Past Due", "Total Balance"])
+    # 2. FORMATO DE TABLA Y ENTEROS SIN DECIMALES EN CUENTAS
+    def render_custom_html_table(df, is_distribution=False):
+        if df is None or df.empty:
+            return '<div class="alert-box">No records available.</div>'
 
-    # Transición alert text
+        headers = "".join([f"<th>{col}</th>" for col in df.columns])
+        
+        int_cols = ["Prev Accounts (All)", "Curr Accounts (All)", "Prev Acc Open AR", "Curr Acc Open AR"]
+        curr_cols = ["Total Past Due", "Total Balance"]
+
+        rows = ""
+        for _, row in df.iterrows():
+            cells = ""
+            for col in df.columns:
+                val = row[col]
+                
+                # Formato entero estricto para cuentas (sin decimales .0)
+                if col in int_cols:
+                    try:
+                        formatted_val = f"{int(round(float(val))):,}"
+                    except (ValueError, TypeError):
+                        formatted_val = str(val)
+                # Formato moneda
+                elif col in curr_cols:
+                    try:
+                        formatted_val = f"${float(val):,.2f}"
+                    except (ValueError, TypeError):
+                        formatted_val = str(val)
+                else:
+                    formatted_val = str(val)
+
+                cells += f"<td>{formatted_val}</td>"
+            rows += f"<tr>{cells}</tr>\n"
+
+        return f"""
+        <div class="table-scroll-container">
+            <table class="styled-table">
+                <thead><tr>{headers}</tr></thead>
+                <tbody>{rows}</tbody>
+            </table>
+        </div>
+        """
+
+    html_transitions = render_custom_html_table(df_changes_formatted)
+    html_new_accounts = render_custom_html_table(df_new_formatted)
+    html_unassigned = render_custom_html_table(df_unassigned_formatted)
+    html_distribution = render_custom_html_table(df_dist_final, is_distribution=True)
+
     if not df_analyst_changes.empty:
         trans_alert = f"💰 <strong>Financial Impact of Assignments:</strong> Identified <strong>{transferred_count:,}</strong> accounts transferred between valid analysts for {report_period_str}, representing <strong>${transferred_balance:,.2f}</strong> in Total Balance and <strong>${transferred_past_due:,.2f}</strong> in Total Past Due."
     else:
@@ -1135,15 +1146,11 @@ def build_html_report_data():
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 body {{
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Inter', sans-serif;
     background-color: #f8fafc;
     color: #1e293b;
     margin: 0;
-    padding: 40px;
-}}
-
-.header-container {{
-    margin-bottom: 25px;
+    padding: 35px;
 }}
 
 .main-title {{
@@ -1177,9 +1184,8 @@ body {{
     background: #f0f5ff;
     border: 1px solid #dbeafe;
     border-left: 6px solid #2563eb;
-    padding: 22px;
+    padding: 20px;
     border-radius: 12px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
 }}
 
 .kpi-title {{
@@ -1190,21 +1196,33 @@ body {{
     letter-spacing: 0.5px;
 }}
 
+.kpi-value-container {{
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-top: 8px;
+}}
+
 .kpi-value {{
-    font-size: 32px;
+    font-size: 30px;
     font-weight: 800;
     color: #001fbe;
-    margin-top: 8px;
+}}
+
+.kpi-delta {{
+    font-size: 14px;
+    font-weight: 700;
+    color: #16a34a;
+    background: #dcfce7;
+    padding: 2px 8px;
+    border-radius: 12px;
 }}
 
 .section-title {{
     font-size: 20px;
     font-weight: 700;
     color: #011e6a;
-    margin: 35px 0 6px 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    margin: 30px 0 6px 0;
 }}
 
 .section-desc {{
@@ -1220,7 +1238,6 @@ body {{
     padding: 14px 20px;
     color: #0369a1;
     border-radius: 10px;
-    font-weight: 500;
     font-size: 14px;
     margin-top: 12px;
     margin-bottom: 25px;
@@ -1234,9 +1251,6 @@ body {{
     font-size: 13.5px;
     color: #64748b;
     margin-bottom: 12px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
 }}
 
 .table-scroll-container {{
@@ -1280,10 +1294,6 @@ body {{
     background-color: #f8fafc;
 }}
 
-.styled-table tr:hover {{
-    background-color: #f1f5f9;
-}}
-
 .insights-card {{
     background: white;
     border: 1px solid #e2e8f0;
@@ -1292,16 +1302,10 @@ body {{
     margin-top: 15px;
     display: flex;
     gap: 25px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }}
 
-.insights-left {{
-    flex: 2;
-}}
-
-.insights-right {{
-    flex: 1;
-}}
+.insights-left {{ flex: 2; }}
+.insights-right {{ flex: 1; }}
 
 .insights-list {{
     list-style: none;
@@ -1320,7 +1324,7 @@ body {{
 </head>
 <body>
 
-<div class="header-container">
+<div>
     {logo_html}
     <div class="main-title">Z-Groups Tracker Elevate</div>
     <div class="period-badge">📅 Active Report Period: <strong>{report_period_str}</strong></div>
@@ -1329,15 +1333,22 @@ body {{
 <div class="kpi-container">
     <div class="kpi-card">
         <div class="kpi-title">Active Accounts (Previous Month)</div>
-        <div class="kpi-value">{prev_active_count:,}</div>
+        <div class="kpi-value-container">
+            <div class="kpi-value">{prev_active_count:,}</div>
+        </div>
     </div>
     <div class="kpi-card">
         <div class="kpi-title">Active Accounts ({report_period_str})</div>
-        <div class="kpi-value">{curr_active_count:,}</div>
+        <div class="kpi-value-container">
+            <div class="kpi-value">{curr_active_count:,}</div>
+            <div class="kpi-delta">{variation_str_active}</div>
+        </div>
     </div>
     <div class="kpi-card">
         <div class="kpi-title">Total Active Balance ({report_period_str})</div>
-        <div class="kpi-value">${total_balance_active_curr:,.2f}</div>
+        <div class="kpi-value-container">
+            <div class="kpi-value">${total_balance_active_curr:,.2f}</div>
+        </div>
     </div>
 </div>
 
@@ -1378,7 +1389,6 @@ body {{
 
 </body>
 </html>"""
-
 
 st.download_button(
     label="📄 Download Report as HTML",
